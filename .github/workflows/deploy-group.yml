@@ -1,0 +1,160 @@
+name: Deploy Group
+
+on:
+  workflow_dispatch:
+    inputs:
+      group_number:
+        description: 'Group number (e.g. 1, 2, 3...)'
+        required: true
+        type: string
+      fork_url:
+        description: 'Intern fork URL (e.g. https://github.com/ibm-intern/novacart-dashboard-starter)'
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      REPO_URL: ${{ secrets.REPO_URL }}
+      GROUP: ${{ github.event.inputs.group_number }}
+      DB: NOVACART_DB
+      SCHEMA: APP
+      BACKEND_POOL: NOVACART_BACKEND_POOL
+      FRONTEND_POOL: NOVACART_FRONTEND_POOL
+      ADMIN_ROLE: NOVACART_ADMIN_ROLE
+      EXT_ROLE: NOVACART_EXT_ROLE
+      APP_WH: NOVACART_APP_WH
+
+    steps:
+      - name: Checkout intern fork
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.inputs.fork_url != '' && github.event.inputs.fork_url || github.repository }}
+          ref: main
+          token: ${{ github.token }}
+
+      - name: Install Snowflake CLI
+        run: pip install snowflake-cli-labs --quiet
+
+      - name: Configure Snowflake connection
+        run: |
+          mkdir -p ~/.snowflake
+          echo "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" > /tmp/rsa_key.p8
+          chmod 600 /tmp/rsa_key.p8
+          cat > ~/.snowflake/config.toml << 'TOML'
+          [connections.spcs]
+          account = "VEB81086.us-east-1"
+          user = "PGUERRERO"
+          authenticator = "SNOWFLAKE_JWT"
+          private_key_path = "/tmp/rsa_key.p8"
+          role = "NOVACART_ADMIN_ROLE"
+          TOML
+          chmod 0600 ~/.snowflake/config.toml
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Snowflake registry
+        run: |
+          snow spcs image-registry login \
+            --connection spcs \
+            --account VEB81086.us-east-1 \
+            --user PGUERRERO \
+            --authenticator SNOWFLAKE_JWT \
+            --private-key-file /tmp/rsa_key.p8
+
+      - name: Build & push backend
+        run: |
+          docker build --platform linux/amd64 \
+            -t backend_service_image_group${GROUP}:latest \
+            ./backend
+          docker tag backend_service_image_group${GROUP}:latest \
+            $REPO_URL/backend_service_image_group${GROUP}:latest
+          docker push $REPO_URL/backend_service_image_group${GROUP}:latest
+
+      - name: Build & push frontend
+        run: |
+          docker build --platform linux/amd64 \
+            -t frontend_service_image_group${GROUP}:latest \
+            ./frontend
+          docker tag frontend_service_image_group${GROUP}:latest \
+            $REPO_URL/frontend_service_image_group${GROUP}:latest
+          docker push $REPO_URL/frontend_service_image_group${GROUP}:latest
+
+      - name: Build & push router
+        run: |
+          docker build --platform linux/amd64 \
+            -t router_service_image_group${GROUP}:latest \
+            ./router
+          docker tag router_service_image_group${GROUP}:latest \
+            $REPO_URL/router_service_image_group${GROUP}:latest
+          docker push $REPO_URL/router_service_image_group${GROUP}:latest
+
+      - name: Recreate SPCS services
+        run: |
+          snow sql --connection spcs -q "
+          USE ROLE NOVACART_ADMIN_ROLE;
+          USE DATABASE $DB;
+          USE SCHEMA $SCHEMA;
+
+          DROP SERVICE IF EXISTS backend_service_group${GROUP};
+          DROP SERVICE IF EXISTS frontend_service_group${GROUP};
+
+          CREATE SERVICE backend_service_group${GROUP}
+            IN COMPUTE POOL $BACKEND_POOL
+            FROM SPECIFICATION \$\$
+            spec:
+              container:
+              - name: backend
+                image: $REPO_URL/backend_service_image_group${GROUP}:latest
+                env:
+                  PORT: '8000'
+                  SNOWFLAKE_WAREHOUSE: $APP_WH
+              endpoint:
+              - name: backendendpoint
+                port: 8000
+                public: false
+            \$\$
+            MIN_INSTANCES=1 MAX_INSTANCES=1;
+
+          CREATE SERVICE frontend_service_group${GROUP}
+            IN COMPUTE POOL $FRONTEND_POOL
+            FROM SPECIFICATION \$\$
+            spec:
+              container:
+              - name: frontend
+                image: $REPO_URL/frontend_service_image_group${GROUP}:latest
+                env:
+                  PORT: '3000'
+                  REACT_APP_BACKEND_URL: /api
+              - name: router
+                image: $REPO_URL/router_service_image_group${GROUP}:latest
+                env:
+                  FRONTEND_SERVICE: localhost:3000
+                  BACKEND_SERVICE: backend-service-group${GROUP}:8000
+            endpoint:
+            - name: routerendpoint
+              port: 8000
+              public: true
+            \$\$
+            MIN_INSTANCES=1 MAX_INSTANCES=1;
+
+          GRANT USAGE ON SERVICE backend_service_group${GROUP}  TO ROLE $EXT_ROLE;
+          GRANT USAGE ON SERVICE frontend_service_group${GROUP} TO ROLE $EXT_ROLE;
+          GRANT SERVICE ROLE backend_service_group${GROUP}!ALL_ENDPOINTS_USAGE  TO ROLE $EXT_ROLE;
+          GRANT SERVICE ROLE frontend_service_group${GROUP}!ALL_ENDPOINTS_USAGE TO ROLE $EXT_ROLE;
+          "
+
+      - name: Wait and get URL
+        run: |
+          echo "Waiting for service to start..."
+          sleep 90
+          snow sql --connection spcs -q "USE DATABASE $DB; USE SCHEMA $SCHEMA; SHOW ENDPOINTS IN SERVICE frontend_service_group${GROUP};" --format json > /tmp/endpoints.json 2>/dev/null || true
+          URL=$(python3 .github/scripts/get_url.py 2>/dev/null || echo "")
+          echo "## ✅ Group $GROUP deployed" >> $GITHUB_STEP_SUMMARY
+          echo "**Fork:** ${{ github.event.inputs.fork_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://$URL" >> $GITHUB_STEP_SUMMARY
+          echo ""
+          echo "Group $GROUP app URL: https://$URL"
