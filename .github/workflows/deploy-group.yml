@@ -95,7 +95,7 @@ jobs:
           docker tag router_service_image_group${GROUP}:latest $REPO_URL/router_service_image_group${GROUP}:latest
           docker push $REPO_URL/router_service_image_group${GROUP}:latest
 
-      - name: Recreate SPCS services
+      - name: Recreate SPCS service
         run: |
           snow sql --connection spcs -q "
           USE ROLE NOVACART_ADMIN_ROLE;
@@ -103,7 +103,7 @@ jobs:
           USE SCHEMA $SCHEMA;
           DROP SERVICE IF EXISTS backend_service_group${GROUP};
           DROP SERVICE IF EXISTS frontend_service_group${GROUP};
-          CREATE SERVICE backend_service_group${GROUP}
+          CREATE SERVICE frontend_service_group${GROUP}
             IN COMPUTE POOL NOVACART_BACKEND_POOL
             FROM SPECIFICATION \$\$
             spec:
@@ -111,25 +111,13 @@ jobs:
               - name: backend
                 image: $REPO_URL/backend_service_image_group${GROUP}:latest
                 env:
-                  PORT: '8000'
+                  PORT: '8001'
                   DATA_BACKEND: snowflake
                   CLIENT_VALIDATION: Snowflake
                   SNOWFLAKE_ACCOUNT: VEB81086.us-east-1
-                  SNOWFLAKE_HOST: VEB81086.snowflakecomputing.com
                   SNOWFLAKE_DATABASE: NOVACART_DB
                   SNOWFLAKE_SCHEMA: APP
                   SNOWFLAKE_WAREHOUSE: NOVACART_APP_WH
-              endpoint:
-              - name: backendendpoint
-                port: 8000
-                public: false
-            \$\$
-            MIN_INSTANCES=1 MAX_INSTANCES=1;
-          CREATE SERVICE frontend_service_group${GROUP}
-            IN COMPUTE POOL NOVACART_FRONTEND_POOL
-            FROM SPECIFICATION \$\$
-            spec:
-              container:
               - name: frontend
                 image: $REPO_URL/frontend_service_image_group${GROUP}:latest
                 env:
@@ -139,16 +127,14 @@ jobs:
                 image: $REPO_URL/router_service_image_group${GROUP}:latest
                 env:
                   FRONTEND_SERVICE: localhost:3000
-                  BACKEND_SERVICE: backend-service-group${GROUP}:8000
+                  BACKEND_SERVICE: localhost:8001
               endpoint:
               - name: routerendpoint
                 port: 9000
                 public: true
             \$\$
             MIN_INSTANCES=1 MAX_INSTANCES=1;
-          GRANT USAGE ON SERVICE backend_service_group${GROUP}  TO ROLE $EXT_ROLE;
           GRANT USAGE ON SERVICE frontend_service_group${GROUP} TO ROLE $EXT_ROLE;
-          GRANT SERVICE ROLE backend_service_group${GROUP}!ALL_ENDPOINTS_USAGE  TO ROLE $EXT_ROLE;
           GRANT SERVICE ROLE frontend_service_group${GROUP}!ALL_ENDPOINTS_USAGE TO ROLE $EXT_ROLE;
           "
 
@@ -169,5 +155,4 @@ jobs:
             echo "Still provisioning... ($i/10)"
             sleep 30
           done
-          echo "Service deployed — check Snowflake for URL"
-          echo "SHOW ENDPOINTS IN SERVICE frontend_service_group${GROUP};"
+          echo "Service deployed - check Snowflake for URL"
