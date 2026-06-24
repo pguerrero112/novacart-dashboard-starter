@@ -24,7 +24,7 @@ jobs:
       EXT_ROLE: NOVACART_EXT_ROLE
 
     steps:
-      - name: Checkout original repo (for scripts)
+      - name: Checkout original repo (for scripts and router)
         uses: actions/checkout@v4
         with:
           path: original
@@ -160,7 +160,7 @@ jobs:
             snow sql --connection spcs -q "USE DATABASE $DB; USE SCHEMA $SCHEMA; SHOW ENDPOINTS IN SERVICE frontend_service_group${GROUP};" --format json > /tmp/endpoints.json || true
             URL=$(python3 original/.github/scripts/get_url.py || echo "")
             if [ -n "$URL" ]; then
-              echo "## ✅ Group $GROUP deployed" >> $GITHUB_STEP_SUMMARY
+              echo "## Group $GROUP deployed" >> $GITHUB_STEP_SUMMARY
               echo "**Fork:** ${{ github.event.inputs.fork_url }}" >> $GITHUB_STEP_SUMMARY
               echo "**URL:** https://$URL" >> $GITHUB_STEP_SUMMARY
               echo "Group $GROUP app URL: https://$URL"
@@ -169,6 +169,5 @@ jobs:
             echo "Still provisioning... ($i/10)"
             sleep 30
           done
-          echo "## ✅ Group $GROUP deployed — check Snowflake for URL" >> $GITHUB_STEP_SUMMARY
-          echo "Service deployed but URL not ready yet."
-          echo "Run in Snowflake: SHOW ENDPOINTS IN SERVICE frontend_service_group${GROUP};"
+          echo "Service deployed — check Snowflake for URL"
+          echo "SHOW ENDPOINTS IN SERVICE frontend_service_group${GROUP};"
