@@ -16,6 +16,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { Grid, Card, CardContent, Typography, Box } from '@mui/material';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import PeopleIcon from '@mui/icons-material/People';
 import Navbar from '../components/Navbar';
 import { getSummary, getOrders, getCities } from '../utils/api';
 
@@ -76,26 +80,65 @@ export default function OrdersView() {
         {/* ── TODO: Build the UI here ────────────────────────────────────── */}
         {!loading && !error && (
           <>
-            {/*
-              STEP 1 — Stat cards
-              Show total_revenue, total_orders, unique_customers from summary.
-              Hint: use the .stat-row and .stat-box CSS classes.
-              Available data: summary.total_revenue, summary.total_orders, summary.unique_customers
-            */}
-            <div className="stat-row">
-              <div className="stat-box">
-                <div className="label">Total Revenue</div>
-                <div className="value">TODO</div>
-              </div>
-              <div className="stat-box">
-                <div className="label">Total Orders</div>
-                <div className="value">TODO</div>
-              </div>
-              <div className="stat-box">
-                <div className="label">Unique Customers</div>
-                <div className="value">TODO</div>
-              </div>
-            </div>
+            {/* Stat cards with MUI components */}
+            <Grid container spacing={3} sx={{ marginBottom: 4 }}>
+              {/* Total Revenue Card */}
+              <Grid item xs={12} sm={6} md={4}>
+                <Card elevation={2}>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" justifyContent="space-between">
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Total Revenue
+                        </Typography>
+                        <Typography variant="h4" component="div">
+                          ${summary?.total_revenue?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </Typography>
+                      </Box>
+                      <TrendingUpIcon sx={{ fontSize: 48, color: 'primary.main', opacity: 0.7 }} />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Total Orders Card */}
+              <Grid item xs={12} sm={6} md={4}>
+                <Card elevation={2}>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" justifyContent="space-between">
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Total Orders
+                        </Typography>
+                        <Typography variant="h4" component="div">
+                          {summary?.total_orders?.toLocaleString('en-US') || '0'}
+                        </Typography>
+                      </Box>
+                      <ShoppingCartIcon sx={{ fontSize: 48, color: 'primary.main', opacity: 0.7 }} />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Unique Customers Card */}
+              <Grid item xs={12} sm={6} md={4}>
+                <Card elevation={2}>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" justifyContent="space-between">
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Unique Customers
+                        </Typography>
+                        <Typography variant="h4" component="div">
+                          {summary?.unique_customers?.toLocaleString('en-US') || '0'}
+                        </Typography>
+                      </Box>
+                      <PeopleIcon sx={{ fontSize: 48, color: 'primary.main', opacity: 0.7 }} />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
 
             {/*
               STEP 2 — Monthly revenue chart
