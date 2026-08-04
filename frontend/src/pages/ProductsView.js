@@ -11,7 +11,17 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  Paper,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
+} from '@mui/material';
+import { BarChart } from '@mui/x-charts/BarChart';
 import Navbar from '../components/Navbar';
 import { getProducts } from '../utils/api';
 
@@ -69,34 +79,77 @@ export default function ProductsView() {
         {!loading && !error && (
           <div className="grid-2">
 
-            {/*
-              STEP 1 — Top products bar chart
-              products is: [{ product_id, name, category, units_sold, revenue }]
-              Use a horizontal BarChart (layout="vertical").
-              XAxis type="number", YAxis type="category" dataKey="name"
-              Hint: truncate long product names to 20 chars
-            */}
-            <div className="card">
-              <div className="section-title" style={{ marginBottom: 16 }}>Top 10 Products by Revenue</div>
-              {/* TODO: add your bar chart here */}
-              <div className="loading" style={{ height: 300 }}>
-                Implement the products bar chart
-              </div>
-            </div>
+            {/* Top 10 Products Chart */}
+            <Paper elevation={2} sx={{ padding: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Top 10 Products by Revenue
+              </Typography>
+              {products.length > 0 ? (
+                <BarChart
+                  yAxis={[{
+                    scaleType: 'band',
+                    data: products.slice(0, 10).map(p =>
+                      p.name.length > 25 ? p.name.substring(0, 25) + '...' : p.name
+                    ),
+                  }]}
+                  series={[
+                    {
+                      data: products.slice(0, 10).map(p => p.revenue),
+                      label: 'Revenue ($)',
+                      color: '#4caf50',
+                    },
+                  ]}
+                  layout="horizontal"
+                  height={400}
+                  margin={{ left: 200, right: 20, top: 20, bottom: 40 }}
+                />
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                  No product data available
+                </Typography>
+              )}
+            </Paper>
 
-            {/*
-              STEP 2 — Products table
-              Show all products in a table: Name | Category | Units Sold | Revenue
-              Hint: use an HTML table or build with divs.
-              Format revenue with the formatCurrency helper above.
-            */}
-            <div className="card">
-              <div className="section-title" style={{ marginBottom: 16 }}>Product Details</div>
-              {/* TODO: add your table here */}
-              <div className="loading" style={{ height: 300 }}>
-                Implement the products table
-              </div>
-            </div>
+            {/* Products Table */}
+            <TableContainer component={Paper} elevation={2}>
+              <Typography variant="h6" sx={{ padding: 2 }}>
+                Product Details
+              </Typography>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell><strong>Product Name</strong></TableCell>
+                    <TableCell><strong>Category</strong></TableCell>
+                    <TableCell align="right"><strong>Units Sold</strong></TableCell>
+                    <TableCell align="right"><strong>Revenue</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {products.length > 0 ? (
+                    products.map((product) => (
+                      <TableRow
+                        key={product.product_id}
+                        hover
+                        sx={{ '&:nth-of-type(odd)': { backgroundColor: 'action.hover' } }}
+                      >
+                        <TableCell>{product.name}</TableCell>
+                        <TableCell>{product.category}</TableCell>
+                        <TableCell align="right">{product.units_sold.toLocaleString('en-US')}</TableCell>
+                        <TableCell align="right">{formatCurrency(product.revenue)}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} align="center">
+                        <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                          No product data available
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
 
           </div>
         )}

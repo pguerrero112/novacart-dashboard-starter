@@ -15,7 +15,12 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { Grid, Card, CardContent, Typography, Box, Paper } from '@mui/material';
+import { LineChart } from '@mui/x-charts/LineChart';
+import { BarChart } from '@mui/x-charts/BarChart';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import PeopleIcon from '@mui/icons-material/People';
 import Navbar from '../components/Navbar';
 import { getSummary, getOrders, getCities } from '../utils/api';
 
@@ -76,55 +81,125 @@ export default function OrdersView() {
         {/* ── TODO: Build the UI here ────────────────────────────────────── */}
         {!loading && !error && (
           <>
-            {/*
-              STEP 1 — Stat cards
-              Show total_revenue, total_orders, unique_customers from summary.
-              Hint: use the .stat-row and .stat-box CSS classes.
-              Available data: summary.total_revenue, summary.total_orders, summary.unique_customers
-            */}
-            <div className="stat-row">
-              <div className="stat-box">
-                <div className="label">Total Revenue</div>
-                <div className="value">TODO</div>
-              </div>
-              <div className="stat-box">
-                <div className="label">Total Orders</div>
-                <div className="value">TODO</div>
-              </div>
-              <div className="stat-box">
-                <div className="label">Unique Customers</div>
-                <div className="value">TODO</div>
-              </div>
-            </div>
+            {/* Stat cards with MUI components */}
+            <Grid container spacing={3} sx={{ marginBottom: 4 }}>
+              {/* Total Revenue Card */}
+              <Grid item xs={12} sm={6} md={4}>
+                <Card elevation={2}>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" justifyContent="space-between">
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Total Revenue
+                        </Typography>
+                        <Typography variant="h4" component="div">
+                          ${summary?.total_revenue?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </Typography>
+                      </Box>
+                      <TrendingUpIcon sx={{ fontSize: 48, color: 'primary.main', opacity: 0.7 }} />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
 
-            {/*
-              STEP 2 — Monthly revenue chart
-              orders is an array of: { month, month_name, order_count, revenue }
-              Use a BarChart or LineChart from recharts.
-              Hint: XAxis dataKey="month_name", Bar dataKey="revenue"
-            */}
-            <div className="card" style={{ marginBottom: 20 }}>
-              <div className="section-title" style={{ marginBottom: 16 }}>Monthly Revenue</div>
-              {/* TODO: add your chart here */}
-              <div className="loading" style={{ height: 200 }}>
-                Implement the monthly revenue chart using recharts BarChart
-              </div>
-            </div>
+              {/* Total Orders Card */}
+              <Grid item xs={12} sm={6} md={4}>
+                <Card elevation={2}>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" justifyContent="space-between">
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Total Orders
+                        </Typography>
+                        <Typography variant="h4" component="div">
+                          {summary?.total_orders?.toLocaleString('en-US') || '0'}
+                        </Typography>
+                      </Box>
+                      <ShoppingCartIcon sx={{ fontSize: 48, color: 'primary.main', opacity: 0.7 }} />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
 
-            {/*
-              STEP 3 — Revenue by city chart
-              cities is an array of: { city, state, order_count, revenue }
-              Use a horizontal BarChart (layout="vertical").
-              Show top 10 cities only.
-              Hint: .slice(0, 10) on cities array
-            */}
-            <div className="card">
-              <div className="section-title" style={{ marginBottom: 16 }}>Revenue by City</div>
-              {/* TODO: add your chart here */}
-              <div className="loading" style={{ height: 200 }}>
-                Implement the cities chart using recharts BarChart with layout="vertical"
-              </div>
-            </div>
+              {/* Unique Customers Card */}
+              <Grid item xs={12} sm={6} md={4}>
+                <Card elevation={2}>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" justifyContent="space-between">
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Unique Customers
+                        </Typography>
+                        <Typography variant="h4" component="div">
+                          {summary?.unique_customers?.toLocaleString('en-US') || '0'}
+                        </Typography>
+                      </Box>
+                      <PeopleIcon sx={{ fontSize: 48, color: 'primary.main', opacity: 0.7 }} />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+
+            {/* Monthly Revenue Chart */}
+            <Paper elevation={2} sx={{ padding: 3, marginBottom: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Monthly Revenue
+              </Typography>
+              {orders.length > 0 ? (
+                <LineChart
+                  xAxis={[{
+                    scaleType: 'point',
+                    data: orders.map(o => o.month_name),
+                    label: 'Month'
+                  }]}
+                  series={[
+                    {
+                      data: orders.map(o => o.revenue),
+                      label: 'Revenue ($)',
+                      color: '#2196f3',
+                      curve: 'linear',
+                      showMark: true
+                    },
+                  ]}
+                  height={300}
+                  margin={{ left: 70, right: 20, top: 20, bottom: 40 }}
+                />
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                  No monthly revenue data available
+                </Typography>
+              )}
+            </Paper>
+
+            {/* Revenue by City Chart */}
+            <Paper elevation={2} sx={{ padding: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Revenue by City (Top 10)
+              </Typography>
+              {cities.length > 0 ? (
+                <BarChart
+                  yAxis={[{
+                    scaleType: 'band',
+                    data: cities.slice(0, 10).map(c => `${c.city}, ${c.state}`),
+                  }]}
+                  series={[
+                    {
+                      data: cities.slice(0, 10).map(c => c.revenue),
+                      label: 'Revenue ($)',
+                      color: '#f50057',
+                    },
+                  ]}
+                  layout="horizontal"
+                  height={400}
+                  margin={{ left: 150, right: 20, top: 20, bottom: 40 }}
+                />
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                  No city revenue data available
+                </Typography>
+              )}
+            </Paper>
           </>
         )}
       </div>

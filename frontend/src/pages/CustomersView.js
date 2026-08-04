@@ -11,6 +11,17 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import {
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableSortLabel,
+  Typography
+} from '@mui/material';
 import Navbar from '../components/Navbar';
 import { getCustomers } from '../utils/api';
 
@@ -90,35 +101,87 @@ export default function CustomersView() {
         {loading && <div className="loading">Loading customers…</div>}
 
         {!loading && !error && (
-          <div className="card">
-            <div className="section-title" style={{ marginBottom: 16 }}>
+          <TableContainer component={Paper} elevation={2}>
+            <Typography variant="h6" sx={{ padding: 2 }}>
               Top Customers by Revenue
-            </div>
-
-            {/*
-              STEP 1 — Sortable table
-              sorted is: [{ customer_id, name, city, state, total_orders, total_spent }]
-
-              Build a table with these columns:
-                Name | City | State | Orders | Total Spent
-
-              Each column header should be clickable and call handleSort(columnName).
-              Use sortIcon(columnName) to show ↑ or ↓ on the active sort column.
-
-              Hint: use a standard HTML <table> with <thead> and <tbody>.
-              Style alternating rows with different background colors.
-              Format total_spent with formatCurrency().
-            */}
-
-            {/* TODO: add your sortable table here */}
-            <div className="loading" style={{ height: 400 }}>
-              Implement the sortable customers table.
-              Data available in: sorted (array of customer objects)
-              Sorting state: sortBy="{sortBy}", sortDir="{sortDir}"
-              Use handleSort(column) to handle header clicks.
-            </div>
-
-          </div>
+            </Typography>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortBy === 'name'}
+                      direction={sortBy === 'name' ? sortDir : 'asc'}
+                      onClick={() => handleSort('name')}
+                    >
+                      <strong>Customer Name</strong>
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortBy === 'city'}
+                      direction={sortBy === 'city' ? sortDir : 'asc'}
+                      onClick={() => handleSort('city')}
+                    >
+                      <strong>City</strong>
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortBy === 'state'}
+                      direction={sortBy === 'state' ? sortDir : 'asc'}
+                      onClick={() => handleSort('state')}
+                    >
+                      <strong>State</strong>
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell align="right">
+                    <TableSortLabel
+                      active={sortBy === 'total_orders'}
+                      direction={sortBy === 'total_orders' ? sortDir : 'asc'}
+                      onClick={() => handleSort('total_orders')}
+                    >
+                      <strong>Total Orders</strong>
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell align="right">
+                    <TableSortLabel
+                      active={sortBy === 'total_spent'}
+                      direction={sortBy === 'total_spent' ? sortDir : 'asc'}
+                      onClick={() => handleSort('total_spent')}
+                    >
+                      <strong>Total Spent</strong>
+                    </TableSortLabel>
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {sorted.length > 0 ? (
+                  sorted.map((customer) => (
+                    <TableRow
+                      key={customer.customer_id}
+                      hover
+                      sx={{ '&:nth-of-type(odd)': { backgroundColor: 'action.hover' } }}
+                    >
+                      <TableCell>{customer.name}</TableCell>
+                      <TableCell>{customer.city}</TableCell>
+                      <TableCell>{customer.state}</TableCell>
+                      <TableCell align="right">{customer.total_orders.toLocaleString('en-US')}</TableCell>
+                      <TableCell align="right">{formatCurrency(customer.total_spent)}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center">
+                      <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                        No customer data available
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
       </div>
     </div>

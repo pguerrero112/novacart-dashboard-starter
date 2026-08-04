@@ -1,5 +1,19 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import {
+  AppBar,
+  Toolbar,
+  Button,
+  IconButton,
+  Typography,
+  Box
+} from '@mui/material';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import PeopleIcon from '@mui/icons-material/People';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
+import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { useTheme } from '../utils/ThemeContext';
 import ServiceStatus from './ServiceStatus';
 
@@ -9,53 +23,78 @@ export default function Navbar() {
   const { dark, toggle } = useTheme();
 
   const links = [
-    { label: '📊 Orders',    path: '/orders'    },
-    { label: '📦 Products',  path: '/products'  },
-    { label: '👤 Customers', path: '/customers' },
+    { label: 'Orders', path: '/orders', icon: <BarChartIcon sx={{ mr: 0.5 }} /> },
+    { label: 'Products', path: '/products', icon: <InventoryIcon sx={{ mr: 0.5 }} /> },
+    { label: 'Customers', path: '/customers', icon: <PeopleIcon sx={{ mr: 0.5 }} /> },
   ];
 
   return (
-    <nav style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 24px', height: 56,
-      background: dark ? '#0D1B2A' : '#0D2B4E',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-      position: 'sticky', top: 0, zIndex: 100,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
-           onClick={() => navigate('/')}>
-        <span style={{ fontSize: 20 }}>🛒</span>
-        <span style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>NovaCart</span>
-        <span style={{ color: '#4DB6AC', fontSize: 12, marginLeft: 4 }}>Dashboard</span>
-      </div>
+    <AppBar position="sticky" sx={{ background: dark ? '#0D1B2A' : '#0D2B4E' }}>
+      <Toolbar>
+        {/* Logo / Brand */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            cursor: 'pointer',
+            mr: 4
+          }}
+          onClick={() => navigate('/')}
+        >
+          <ShoppingCartIcon sx={{ fontSize: 28, color: '#fff' }} />
+          <Typography variant="h6" component="div" sx={{ color: '#fff', fontWeight: 700 }}>
+            NovaCart
+          </Typography>
+          <Typography variant="caption" sx={{ color: '#4DB6AC', ml: 0.5 }}>
+            Dashboard
+          </Typography>
+        </Box>
 
-      <div style={{ display: 'flex', gap: 8 }}>
-        {links.map(({ label, path }) => {
-          const active = location.pathname === path;
-          return (
-            <button key={path} onClick={() => navigate(path)}
-              style={{
-                background: active ? 'rgba(77,182,172,0.2)' : 'transparent',
-                border: active ? '1px solid #4DB6AC' : '1px solid transparent',
-                color: active ? '#4DB6AC' : '#B0BEC5',
-                borderRadius: 6, padding: '4px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 500,
-              }}>
-              {label}
-            </button>
-          );
-        })}
-      </div>
+        {/* Navigation Links */}
+        <Box sx={{ display: 'flex', gap: 1, flexGrow: 1 }}>
+          {links.map(({ label, path, icon }) => {
+            const active = location.pathname === path;
+            return (
+              <Button
+                key={path}
+                onClick={() => navigate(path)}
+                startIcon={icon}
+                sx={{
+                  color: active ? '#4DB6AC' : '#B0BEC5',
+                  backgroundColor: active ? 'rgba(77,182,172,0.15)' : 'transparent',
+                  border: active ? '1px solid #4DB6AC' : '1px solid transparent',
+                  '&:hover': {
+                    backgroundColor: 'rgba(77,182,172,0.2)',
+                    border: '1px solid rgba(77,182,172,0.5)',
+                  }
+                }}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </Box>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <ServiceStatus />
-        <button onClick={toggle} title={dark ? 'Light mode' : 'Dark mode'}
-          style={{
-            background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
-            color: '#fff', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 16,
-          }}>
-          {dark ? '☀️' : '🌙'}
-        </button>
-      </div>
-    </nav>
+        {/* Right side: Service Status + Theme Toggle */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <ServiceStatus />
+          <IconButton
+            onClick={toggle}
+            color="inherit"
+            title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+            sx={{
+              color: '#fff',
+              backgroundColor: 'rgba(255,255,255,0.08)',
+              '&:hover': {
+                backgroundColor: 'rgba(255,255,255,0.15)',
+              }
+            }}
+          >
+            {dark ? <Brightness7Icon /> : <Brightness4Icon />}
+          </IconButton>
+        </Box>
+      </Toolbar>
+    </AppBar>
   );
 }
