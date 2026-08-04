@@ -11,7 +11,16 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Paper, Typography } from '@mui/material';
+import {
+  Paper,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
+} from '@mui/material';
 import { BarChart } from '@mui/x-charts/BarChart';
 import Navbar from '../components/Navbar';
 import { getProducts } from '../utils/api';
@@ -101,19 +110,46 @@ export default function ProductsView() {
               )}
             </Paper>
 
-            {/*
-              STEP 2 — Products table
-              Show all products in a table: Name | Category | Units Sold | Revenue
-              Hint: use an HTML table or build with divs.
-              Format revenue with the formatCurrency helper above.
-            */}
-            <div className="card">
-              <div className="section-title" style={{ marginBottom: 16 }}>Product Details</div>
-              {/* TODO: add your table here */}
-              <div className="loading" style={{ height: 300 }}>
-                Implement the products table
-              </div>
-            </div>
+            {/* Products Table */}
+            <TableContainer component={Paper} elevation={2}>
+              <Typography variant="h6" sx={{ padding: 2 }}>
+                Product Details
+              </Typography>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell><strong>Product Name</strong></TableCell>
+                    <TableCell><strong>Category</strong></TableCell>
+                    <TableCell align="right"><strong>Units Sold</strong></TableCell>
+                    <TableCell align="right"><strong>Revenue</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {products.length > 0 ? (
+                    products.map((product) => (
+                      <TableRow
+                        key={product.product_id}
+                        hover
+                        sx={{ '&:nth-of-type(odd)': { backgroundColor: 'action.hover' } }}
+                      >
+                        <TableCell>{product.name}</TableCell>
+                        <TableCell>{product.category}</TableCell>
+                        <TableCell align="right">{product.units_sold.toLocaleString('en-US')}</TableCell>
+                        <TableCell align="right">{formatCurrency(product.revenue)}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} align="center">
+                        <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                          No product data available
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
 
           </div>
         )}
