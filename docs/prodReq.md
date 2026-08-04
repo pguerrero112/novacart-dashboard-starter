@@ -424,7 +424,7 @@ Order transaction fact table (30,000 records).
 | `date_key` | INTEGER | Foreign key to dim_date | 20220315 |
 | `quantity` | INTEGER | Number of units ordered | 2 |
 | `amount` | DECIMAL(10,2) | Order amount in local currency | 149.99 |
-| `status` | VARCHAR(20) | Order status | delivered, shipped, pending, cancelled |
+| `status` | STRING | Order status | delivered, shipped, pending, cancelled |
 | `order_date` | DATE | Date order was placed | 2022-03-15 |
 
 **Key Business Rules:**
@@ -437,10 +437,10 @@ Customer dimension table (400 records) with full history tracking.
 | Column | Data Type | Description | Example |
 |--------|-----------|-------------|---------|
 | `customer_id` | INTEGER | Customer identifier | 234 |
-| `name` | VARCHAR(100) | Customer full name | John Smith |
-| `email` | VARCHAR(100) | Email address | john.smith@example.com |
-| `city` | VARCHAR(50) | City | San Francisco |
-| `state` | VARCHAR(2) | State code (US) | CA |
+| `name` | STRING | Customer full name | John Smith |
+| `email` | STRING | Email address | john.smith@example.com |
+| `city` | STRING | City | San Francisco |
+| `state` | STRING | State code (US) | CA |
 | `is_current` | BOOLEAN | Current record flag | TRUE |
 
 **Key Business Rules:**
@@ -453,8 +453,8 @@ Product catalog dimension table (15 records).
 | Column | Data Type | Description | Example |
 |--------|-----------|-------------|---------|
 | `product_id` | INTEGER | Product identifier | 5 |
-| `name` | VARCHAR(100) | Product name | Wireless Mouse |
-| `category` | VARCHAR(50) | Product category | Electronics |
+| `name` | STRING | Product name | Wireless Mouse |
+| `category` | STRING | Product category | Electronics |
 | `price` | DECIMAL(10,2) | Current list price | 29.99 |
 
 #### Table: `dim_date`
@@ -467,7 +467,7 @@ Date dimension table for time-series analysis (365+ records).
 | `year` | INTEGER | Year | 2022 |
 | `quarter` | INTEGER | Quarter (1-4) | 1 |
 | `month` | INTEGER | Month number (1-12) | 3 |
-| `month_name` | VARCHAR(20) | Month name | March |
+| `month_name` | STRING | Month name | March |
 | `day_of_week` | INTEGER | Day of week (1=Sunday, 7=Saturday) | 3 |
 
 **Relationships:**
