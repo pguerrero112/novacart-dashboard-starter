@@ -15,8 +15,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { Grid, Card, CardContent, Typography, Box } from '@mui/material';
+import { Grid, Card, CardContent, Typography, Box, Paper } from '@mui/material';
+import { LineChart } from '@mui/x-charts/LineChart';
+import { BarChart } from '@mui/x-charts/BarChart';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import PeopleIcon from '@mui/icons-material/People';
@@ -140,34 +141,65 @@ export default function OrdersView() {
               </Grid>
             </Grid>
 
-            {/*
-              STEP 2 — Monthly revenue chart
-              orders is an array of: { month, month_name, order_count, revenue }
-              Use a BarChart or LineChart from recharts.
-              Hint: XAxis dataKey="month_name", Bar dataKey="revenue"
-            */}
-            <div className="card" style={{ marginBottom: 20 }}>
-              <div className="section-title" style={{ marginBottom: 16 }}>Monthly Revenue</div>
-              {/* TODO: add your chart here */}
-              <div className="loading" style={{ height: 200 }}>
-                Implement the monthly revenue chart using recharts BarChart
-              </div>
-            </div>
+            {/* Monthly Revenue Chart */}
+            <Paper elevation={2} sx={{ padding: 3, marginBottom: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Monthly Revenue
+              </Typography>
+              {orders.length > 0 ? (
+                <LineChart
+                  xAxis={[{
+                    scaleType: 'point',
+                    data: orders.map(o => o.month_name),
+                    label: 'Month'
+                  }]}
+                  series={[
+                    {
+                      data: orders.map(o => o.revenue),
+                      label: 'Revenue ($)',
+                      color: '#2196f3',
+                      curve: 'linear',
+                      showMark: true
+                    },
+                  ]}
+                  height={300}
+                  margin={{ left: 70, right: 20, top: 20, bottom: 40 }}
+                />
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                  No monthly revenue data available
+                </Typography>
+              )}
+            </Paper>
 
-            {/*
-              STEP 3 — Revenue by city chart
-              cities is an array of: { city, state, order_count, revenue }
-              Use a horizontal BarChart (layout="vertical").
-              Show top 10 cities only.
-              Hint: .slice(0, 10) on cities array
-            */}
-            <div className="card">
-              <div className="section-title" style={{ marginBottom: 16 }}>Revenue by City</div>
-              {/* TODO: add your chart here */}
-              <div className="loading" style={{ height: 200 }}>
-                Implement the cities chart using recharts BarChart with layout="vertical"
-              </div>
-            </div>
+            {/* Revenue by City Chart */}
+            <Paper elevation={2} sx={{ padding: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Revenue by City (Top 10)
+              </Typography>
+              {cities.length > 0 ? (
+                <BarChart
+                  yAxis={[{
+                    scaleType: 'band',
+                    data: cities.slice(0, 10).map(c => `${c.city}, ${c.state}`),
+                  }]}
+                  series={[
+                    {
+                      data: cities.slice(0, 10).map(c => c.revenue),
+                      label: 'Revenue ($)',
+                      color: '#f50057',
+                    },
+                  ]}
+                  layout="horizontal"
+                  height={400}
+                  margin={{ left: 150, right: 20, top: 20, bottom: 40 }}
+                />
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                  No city revenue data available
+                </Typography>
+              )}
+            </Paper>
           </>
         )}
       </div>
