@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3 /c/Users/MarioBelmonte/GitProjects/nguyen-nguyen/data/novacart_gold.db \".schema\")",
+      "Bash(mkdir -p c:/Users/MarioBelmonte/GitProjects/nguyen-nguyen/docs)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\MarioBelmonte\\GitProjects\\nguyen-nguyen"
+    ]
+  }
+}
