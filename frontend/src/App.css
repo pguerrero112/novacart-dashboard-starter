@@ -83,3 +83,96 @@ body {
 .btn-apply:hover { opacity: 0.85; }
 
 .loading { display: flex; align-items: center; justify-content: center; height: 200px; color: var(--text-muted); font-size: 14px; }
+
+/* ─── MUI Integration Styles ──────────────────────────────────────────── */
+
+/* Ensure proper spacing for MUI components */
+.MuiCard-root {
+  transition: box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.MuiCard-root:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Responsive breakpoints for better mobile experience */
+@media (max-width: 600px) {
+  .page {
+    padding: 16px;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-bar input,
+  .filter-bar select {
+    width: 100%;
+  }
+}
+
+/* Smooth transitions for theme switching */
+.MuiPaper-root,
+.MuiCard-root,
+.MuiTableContainer-root {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Better table styling */
+.MuiTableCell-root {
+  font-size: 14px;
+}
+
+.MuiTableCell-head {
+  font-weight: 600 !important;
+}
+
+/* Chart container spacing */
+.recharts-wrapper {
+  margin: 0 auto;
+}
+
+/* Improve button hover states */
+.MuiButton-root {
+  transition: all 0.2s ease;
+}
+
+/* Scrollbar styling for dark mode */
+[data-theme="dark"] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--bg-card);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #455A64;
+  border-radius: 5px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #607D8B;
+}
+
+/* Light mode scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
