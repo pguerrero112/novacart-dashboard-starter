@@ -418,52 +418,44 @@ Order transaction fact table (30,000 records).
 
 | Column | Data Type | Description | Example |
 |--------|-----------|-------------|---------|
-| `order_id` | INTEGER | Primary key, unique order identifier | 1001 |
+| `order_id` | INTEGER | Unique order identifier | 1001 |
 | `customer_id` | INTEGER | Foreign key to dim_customer | 234 |
 | `product_id` | INTEGER | Foreign key to dim_product | 5 |
-| `order_date` | DATE | Date order was placed | 2022-03-15 |
-| `amount` | DECIMAL(10,2) | Order amount in local currency | 149.99 |
-| `currency` | VARCHAR(3) | ISO 4217 currency code | USD |
-| `status` | VARCHAR(20) | Order status | delivered, shipped, pending, cancelled |
-| `quantity` | INTEGER | Number of units ordered | 2 |
 | `date_key` | INTEGER | Foreign key to dim_date | 20220315 |
+| `quantity` | INTEGER | Number of units ordered | 2 |
+| `amount` | DECIMAL(10,2) | Order amount in local currency | 149.99 |
+| `status` | VARCHAR(20) | Order status | delivered, shipped, pending, cancelled |
+| `order_date` | DATE | Date order was placed | 2022-03-15 |
 
 **Key Business Rules:**
 - Revenue calculations: `status IN ('delivered', 'shipped')`
-- Currency conversions: Not required (all sample data in single currency)
 - Date range filtering: Use `order_date` column
 
 #### Table: `dim_customer`
-Customer dimension table (400 records) with SCD Type 2 (Slowly Changing Dimension).
+Customer dimension table (400 records) with full history tracking.
 
 | Column | Data Type | Description | Example |
 |--------|-----------|-------------|---------|
-| `customer_id` | INTEGER | Primary key | 234 |
+| `customer_id` | INTEGER | Customer identifier | 234 |
 | `name` | VARCHAR(100) | Customer full name | John Smith |
 | `email` | VARCHAR(100) | Email address | john.smith@example.com |
-| `signup_date` | DATE | Account creation date | 2021-06-10 |
-| `addr_street` | VARCHAR(200) | Street address | 123 Main St |
-| `addr_city` | VARCHAR(50) | City | San Francisco |
-| `addr_state` | VARCHAR(2) | State code (US) | CA |
-| `addr_zip` | VARCHAR(10) | Postal code | 94102 |
-| `valid_from` | TIMESTAMP | SCD Type 2: record valid from | 2021-06-10 00:00:00 |
-| `valid_to` | TIMESTAMP | SCD Type 2: record valid to | 9999-12-31 23:59:59 |
-| `is_current` | BOOLEAN | SCD Type 2: current record flag | TRUE |
+| `city` | VARCHAR(50) | City | San Francisco |
+| `state` | VARCHAR(2) | State code (US) | CA |
+| `is_current` | BOOLEAN | Current record flag | TRUE |
 
 **Key Business Rules:**
 - Always filter `is_current = TRUE` for current customer data
-- Address fields: US data shows "City, State"; international varies
+- Address display format: US data shows "City, State"; international varies
 
 #### Table: `dim_product`
-Product dimension table (15 records).
+Product catalog dimension table (15 records).
 
 | Column | Data Type | Description | Example |
 |--------|-----------|-------------|---------|
-| `product_id` | INTEGER | Primary key | 5 |
+| `product_id` | INTEGER | Product identifier | 5 |
 | `name` | VARCHAR(100) | Product name | Wireless Mouse |
 | `category` | VARCHAR(50) | Product category | Electronics |
 | `price` | DECIMAL(10,2) | Current list price | 29.99 |
-| `updated_at` | TIMESTAMP | Last price/info update | 2022-01-01 10:30:00 |
 
 #### Table: `dim_date`
 Date dimension table for time-series analysis (365+ records).
@@ -477,7 +469,6 @@ Date dimension table for time-series analysis (365+ records).
 | `month` | INTEGER | Month number (1-12) | 3 |
 | `month_name` | VARCHAR(20) | Month name | March |
 | `day_of_week` | INTEGER | Day of week (1=Sunday, 7=Saturday) | 3 |
-| `is_weekend` | BOOLEAN | Weekend flag | FALSE |
 
 **Relationships:**
 ```
