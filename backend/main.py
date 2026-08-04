@@ -222,17 +222,18 @@ def get_products(start: str = "2022-01-01", end: str = "2022-12-31"):
 
     Expected response:
     [
-        { "product_name": "Wireless Headphones", "category": "Electronics",
-          "quantity_sold": 342, "revenue": 30578.58 }
+        { "product_id": "P001", "name": "Wireless Headphones", "category": "Electronics",
+          "units_sold": 342, "revenue": 30578.58 }
     ]
     """
     try:
         conn = get_connection()
         results = execute_query(conn, """
             SELECT
-                p.name AS product_name,
+                p.product_id,
+                p.name,
                 p.category,
-                SUM(o.quantity) AS quantity_sold,
+                SUM(o.quantity) AS units_sold,
                 SUM(o.amount) AS revenue
             FROM fact_orders o
             JOIN dim_product p ON o.product_id = p.product_id
@@ -246,9 +247,10 @@ def get_products(start: str = "2022-01-01", end: str = "2022-12-31"):
         # Format response with proper types
         return [
             {
-                "product_name": row["product_name"],
+                "product_id": row["product_id"],
+                "name": row["name"],
                 "category": row["category"],
-                "quantity_sold": row["quantity_sold"],
+                "units_sold": row["units_sold"],
                 "revenue": round(row["revenue"], 2)
             }
             for row in results
@@ -264,35 +266,39 @@ def get_customers(start: str = "2022-01-01", end: str = "2022-12-31"):
 
     Expected response:
     [
-        { "customer_name": "Alice Johnson", "country": "Austin, TX",
-          "order_count": 14, "total_revenue": 1240.50 }
+        { "customer_id": "C001", "name": "Alice Johnson", "city": "Austin",
+          "state": "TX", "total_orders": 14, "total_spent": 1240.50 }
     ]
     """
     try:
         conn = get_connection()
         results = execute_query(conn, """
             SELECT
-                c.name AS customer_name,
-                c.addr_city || ', ' || c.addr_state AS country,
-                COUNT(DISTINCT o.order_id) AS order_count,
-                SUM(o.amount) AS total_revenue
+                c.customer_id,
+                c.name,
+                c.addr_city AS city,
+                c.addr_state AS state,
+                COUNT(DISTINCT o.order_id) AS total_orders,
+                SUM(o.amount) AS total_spent
             FROM fact_orders o
             JOIN dim_customer c ON o.customer_id = c.customer_id
             WHERE c.is_current = 1
               AND o.status IN ('delivered', 'shipped')
               AND o.order_date BETWEEN ? AND ?
             GROUP BY c.customer_id, c.name, c.addr_city, c.addr_state
-            ORDER BY total_revenue DESC
+            ORDER BY total_spent DESC
             LIMIT 20
         """, (start, end))
 
         # Format response with proper types
         return [
             {
-                "customer_name": row["customer_name"],
-                "country": row["country"],
-                "order_count": row["order_count"],
-                "total_revenue": round(row["total_revenue"], 2)
+                "customer_id": row["customer_id"],
+                "name": row["name"],
+                "city": row["city"],
+                "state": row["state"],
+                "total_orders": row["total_orders"],
+                "total_spent": round(row["total_spent"], 2)
             }
             for row in results
         ]
@@ -308,17 +314,15 @@ def get_cities(start: str = "2022-01-01", end: str = "2022-12-31"):
 
     Expected response:
     [
-        { "country": "Austin, TX", "order_count": 420, "revenue": 38430.00 }
+        { "city": "Austin", "state": "TX", "order_count": 420, "revenue": 38430.00 }
     ]
-
-    Note: PRD refers to this as /franchise/countries endpoint.
-    Returns US city/state data formatted as "City, State".
     """
     try:
         conn = get_connection()
         results = execute_query(conn, """
             SELECT
-                c.addr_city || ', ' || c.addr_state AS country,
+                c.addr_city AS city,
+                c.addr_state AS state,
                 COUNT(DISTINCT o.order_id) AS order_count,
                 SUM(o.amount) AS revenue
             FROM fact_orders o
@@ -333,7 +337,8 @@ def get_cities(start: str = "2022-01-01", end: str = "2022-12-31"):
         # Format response with proper types
         return [
             {
-                "country": row["country"],
+                "city": row["city"],
+                "state": row["state"],
                 "order_count": row["order_count"],
                 "revenue": round(row["revenue"], 2)
             }
