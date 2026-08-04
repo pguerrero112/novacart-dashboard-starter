@@ -184,18 +184,35 @@ def get_orders(start: str = "2022-01-01", end: str = "2022-12-31"):
         { "month": "2022-01", "month_name": "January", "order_count": 842, "revenue": 128450.00 },
         { "month": "2022-02", "month_name": "February", "order_count": 910, "revenue": 141230.00 }
     ]
-
-    TODO: implement this endpoint.
-    Hints:
-      - JOIN fact_orders with dim_date on date_key
-      - GROUP BY year, month, month_name
-      - Filter order_date between start and end
-      - Only include delivered + shipped for revenue
     """
-    conn = get_connection()
+    try:
+        conn = get_connection()
+        results = execute_query(conn, """
+            SELECT
+                printf('%04d-%02d', d.year, d.month) AS month,
+                d.month_name,
+                COUNT(DISTINCT o.order_id) AS order_count,
+                SUM(o.amount) AS revenue
+            FROM fact_orders o
+            JOIN dim_date d ON o.date_key = d.date_key
+            WHERE o.status IN ('delivered', 'shipped')
+              AND o.order_date BETWEEN ? AND ?
+            GROUP BY d.year, d.month, d.month_name
+            ORDER BY d.year, d.month
+        """, (start, end))
 
-    # ── YOUR CODE HERE ────────────────────────────────────────────────────────
-    raise HTTPException(status_code=501, detail="Not implemented yet — your turn!")
+        # Format response with proper types
+        return [
+            {
+                "month": row["month"],
+                "month_name": row["month_name"],
+                "order_count": row["order_count"],
+                "revenue": round(row["revenue"], 2)
+            }
+            for row in results
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @app.get("/franchise/products", tags=["Franchise"])
@@ -205,20 +222,39 @@ def get_products(start: str = "2022-01-01", end: str = "2022-12-31"):
 
     Expected response:
     [
-        { "product_id": "P001", "name": "Wireless Headphones", "category": "Electronics",
-          "units_sold": 342, "revenue": 30578.58 }
+        { "product_name": "Wireless Headphones", "category": "Electronics",
+          "quantity_sold": 342, "revenue": 30578.58 }
     ]
-
-    TODO: implement this endpoint.
-    Hints:
-      - JOIN fact_orders with dim_product on product_id
-      - GROUP BY product_id, name, category
-      - ORDER BY revenue DESC, LIMIT 10
     """
-    conn = get_connection()
+    try:
+        conn = get_connection()
+        results = execute_query(conn, """
+            SELECT
+                p.name AS product_name,
+                p.category,
+                SUM(o.quantity) AS quantity_sold,
+                SUM(o.amount) AS revenue
+            FROM fact_orders o
+            JOIN dim_product p ON o.product_id = p.product_id
+            WHERE o.status IN ('delivered', 'shipped')
+              AND o.order_date BETWEEN ? AND ?
+            GROUP BY p.product_id, p.name, p.category
+            ORDER BY revenue DESC
+            LIMIT 10
+        """, (start, end))
 
-    # ── YOUR CODE HERE ────────────────────────────────────────────────────────
-    raise HTTPException(status_code=501, detail="Not implemented yet — your turn!")
+        # Format response with proper types
+        return [
+            {
+                "product_name": row["product_name"],
+                "category": row["category"],
+                "quantity_sold": row["quantity_sold"],
+                "revenue": round(row["revenue"], 2)
+            }
+            for row in results
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @app.get("/franchise/customers", tags=["Franchise"])
@@ -228,21 +264,40 @@ def get_customers(start: str = "2022-01-01", end: str = "2022-12-31"):
 
     Expected response:
     [
-        { "customer_id": "C001", "name": "Alice Johnson", "city": "Austin",
-          "state": "TX", "total_orders": 14, "total_spent": 1240.50 }
+        { "customer_name": "Alice Johnson", "country": "Austin, TX",
+          "order_count": 14, "total_revenue": 1240.50 }
     ]
-
-    TODO: implement this endpoint.
-    Hints:
-      - JOIN fact_orders with dim_customer on customer_id
-      - Only use dim_customer WHERE is_current = 1
-      - GROUP BY customer_id, name, addr_city, addr_state
-      - ORDER BY total_spent DESC, LIMIT 20
     """
-    conn = get_connection()
+    try:
+        conn = get_connection()
+        results = execute_query(conn, """
+            SELECT
+                c.name AS customer_name,
+                c.addr_city || ', ' || c.addr_state AS country,
+                COUNT(DISTINCT o.order_id) AS order_count,
+                SUM(o.amount) AS total_revenue
+            FROM fact_orders o
+            JOIN dim_customer c ON o.customer_id = c.customer_id
+            WHERE c.is_current = 1
+              AND o.status IN ('delivered', 'shipped')
+              AND o.order_date BETWEEN ? AND ?
+            GROUP BY c.customer_id, c.name, c.addr_city, c.addr_state
+            ORDER BY total_revenue DESC
+            LIMIT 20
+        """, (start, end))
 
-    # ── YOUR CODE HERE ────────────────────────────────────────────────────────
-    raise HTTPException(status_code=501, detail="Not implemented yet — your turn!")
+        # Format response with proper types
+        return [
+            {
+                "customer_name": row["customer_name"],
+                "country": row["country"],
+                "order_count": row["order_count"],
+                "total_revenue": round(row["total_revenue"], 2)
+            }
+            for row in results
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @app.get("/franchise/cities", tags=["Franchise"])
@@ -253,16 +308,36 @@ def get_cities(start: str = "2022-01-01", end: str = "2022-12-31"):
 
     Expected response:
     [
-        { "city": "Austin", "state": "TX", "order_count": 420, "revenue": 38430.00 }
+        { "country": "Austin, TX", "order_count": 420, "revenue": 38430.00 }
     ]
 
-    TODO: implement this endpoint.
-    Hints:
-      - JOIN fact_orders with dim_customer (is_current = 1) on customer_id
-      - GROUP BY addr_city, addr_state
-      - ORDER BY revenue DESC
+    Note: PRD refers to this as /franchise/countries endpoint.
+    Returns US city/state data formatted as "City, State".
     """
-    conn = get_connection()
+    try:
+        conn = get_connection()
+        results = execute_query(conn, """
+            SELECT
+                c.addr_city || ', ' || c.addr_state AS country,
+                COUNT(DISTINCT o.order_id) AS order_count,
+                SUM(o.amount) AS revenue
+            FROM fact_orders o
+            JOIN dim_customer c ON o.customer_id = c.customer_id
+            WHERE c.is_current = 1
+              AND o.status IN ('delivered', 'shipped')
+              AND o.order_date BETWEEN ? AND ?
+            GROUP BY c.addr_city, c.addr_state
+            ORDER BY revenue DESC
+        """, (start, end))
 
-    # ── YOUR CODE HERE ────────────────────────────────────────────────────────
-    raise HTTPException(status_code=501, detail="Not implemented yet — your turn!")
+        # Format response with proper types
+        return [
+            {
+                "country": row["country"],
+                "order_count": row["order_count"],
+                "revenue": round(row["revenue"], 2)
+            }
+            for row in results
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
