@@ -179,7 +179,7 @@ export default function ProductsView() {
                     ]}
                     layout="horizontal"
                     height={500}
-                    margin={{ left: 140, right: 10, top: 10, bottom: 40 }}
+                    margin={{ left: 10, right: 10, top: 10, bottom: 40 }}
                     grid={{ vertical: true }}
                   />
                 ) : (
