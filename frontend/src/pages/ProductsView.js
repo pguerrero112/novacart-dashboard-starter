@@ -19,11 +19,15 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
+  TableRow,
+  TextField,
+  Button,
+  Box
 } from '@mui/material';
 import { BarChart } from '@mui/x-charts/BarChart';
 import Navbar from '../components/Navbar';
 import { getProducts } from '../utils/api';
+import { validateDateFormat, validateDateRange } from '../utils/dateValidation';
 
 // Format currency helper
 function formatCurrency(value) {
@@ -39,10 +43,34 @@ export default function ProductsView() {
   const [products,  setProducts]  = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState(null);
+  const [dateErrors, setDateErrors] = useState({ start: '', end: '', range: '' });
 
   useEffect(() => { loadData(); }, []);
 
+  const validateDates = () => {
+    const errors = { start: '', end: '', range: '' };
+    let isValid = true;
+
+    if (!validateDateFormat(startDate)) {
+      errors.start = 'Invalid date format (YYYY-MM-DD)';
+      isValid = false;
+    }
+    if (!validateDateFormat(endDate)) {
+      errors.end = 'Invalid date format (YYYY-MM-DD)';
+      isValid = false;
+    }
+    if (isValid && !validateDateRange(startDate, endDate)) {
+      errors.range = 'Start date must be before or equal to end date';
+      isValid = false;
+    }
+
+    setDateErrors(errors);
+    return isValid;
+  };
+
   async function loadData() {
+    if (!validateDates()) return;
+
     setLoading(true);
     setError(null);
     try {
@@ -60,13 +88,43 @@ export default function ProductsView() {
       <Navbar />
       <div className="page">
 
-        <div className="filter-bar">
-          <label>From</label>
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-          <label>To</label>
-          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-          <button className="btn-apply" onClick={loadData}>Apply</button>
-        </div>
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <TextField
+            label="From"
+            type="date"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+            error={!!dateErrors.start}
+            helperText={dateErrors.start}
+            InputLabelProps={{ shrink: true }}
+            size="small"
+            sx={{ minWidth: 200 }}
+          />
+          <TextField
+            label="To"
+            type="date"
+            value={endDate}
+            onChange={e => setEndDate(e.target.value)}
+            error={!!dateErrors.end}
+            helperText={dateErrors.end}
+            InputLabelProps={{ shrink: true }}
+            size="small"
+            sx={{ minWidth: 200 }}
+          />
+          <Button
+            variant="contained"
+            onClick={loadData}
+            size="medium"
+            sx={{ height: 40 }}
+          >
+            Apply
+          </Button>
+          {dateErrors.range && (
+            <Typography variant="body2" color="error" sx={{ width: '100%', mt: -1 }}>
+              {dateErrors.range}
+            </Typography>
+          )}
+        </Box>
 
         {error && (
           <div style={{ color: '#C62828', padding: 16, background: '#FFEBEE', borderRadius: 8, marginBottom: 16 }}>

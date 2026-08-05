@@ -24,7 +24,8 @@ The connection and query helpers are already set up in connection.py.
 
 import os
 import time
-from fastapi import FastAPI, HTTPException, Request
+from datetime import datetime
+from fastapi import FastAPI, HTTPException, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
@@ -120,6 +121,28 @@ def authorize(request: Request):
     return {"user": username, "status": "authorized"}
 
 
+# ── Validation helpers ────────────────────────────────────────────────────────
+
+def validate_date_range(start: str, end: str):
+    """
+    Validate that start date is before or equal to end date.
+    Raises HTTPException(422) if validation fails.
+    """
+    try:
+        start_dt = datetime.strptime(start, '%Y-%m-%d')
+        end_dt = datetime.strptime(end, '%Y-%m-%d')
+        if start_dt > end_dt:
+            raise HTTPException(
+                status_code=422,
+                detail="Start date must be before or equal to end date"
+            )
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid date format. Use YYYY-MM-DD"
+        )
+
+
 # ── Franchise endpoints ───────────────────────────────────────────────────────
 
 @app.get("/franchise/summary", tags=["Franchise"])
@@ -170,7 +193,18 @@ def get_summary():
 
 
 @app.get("/franchise/orders", tags=["Franchise"])
-def get_orders(start: str = "2022-01-01", end: str = "2022-12-31"):
+def get_orders(
+    start: str = Query(
+        default="2022-01-01",
+        regex=r'^\d{4}-\d{2}-\d{2}$',
+        description="Start date in YYYY-MM-DD format"
+    ),
+    end: str = Query(
+        default="2022-12-31",
+        regex=r'^\d{4}-\d{2}-\d{2}$',
+        description="End date in YYYY-MM-DD format"
+    )
+):
     """
     Returns monthly order volume and revenue for the given date range.
     Used to power the orders overview chart.
@@ -185,6 +219,7 @@ def get_orders(start: str = "2022-01-01", end: str = "2022-12-31"):
         { "month": "2022-02", "month_name": "February", "order_count": 910, "revenue": 141230.00 }
     ]
     """
+    validate_date_range(start, end)
     try:
         conn = get_connection()
         results = execute_query(conn, """
@@ -216,7 +251,18 @@ def get_orders(start: str = "2022-01-01", end: str = "2022-12-31"):
 
 
 @app.get("/franchise/products", tags=["Franchise"])
-def get_products(start: str = "2022-01-01", end: str = "2022-12-31"):
+def get_products(
+    start: str = Query(
+        default="2022-01-01",
+        regex=r'^\d{4}-\d{2}-\d{2}$',
+        description="Start date in YYYY-MM-DD format"
+    ),
+    end: str = Query(
+        default="2022-12-31",
+        regex=r'^\d{4}-\d{2}-\d{2}$',
+        description="End date in YYYY-MM-DD format"
+    )
+):
     """
     Returns the top 10 products by revenue for the given date range.
 
@@ -226,6 +272,7 @@ def get_products(start: str = "2022-01-01", end: str = "2022-12-31"):
           "units_sold": 342, "revenue": 30578.58 }
     ]
     """
+    validate_date_range(start, end)
     try:
         conn = get_connection()
         results = execute_query(conn, """
@@ -260,7 +307,18 @@ def get_products(start: str = "2022-01-01", end: str = "2022-12-31"):
 
 
 @app.get("/franchise/customers", tags=["Franchise"])
-def get_customers(start: str = "2022-01-01", end: str = "2022-12-31"):
+def get_customers(
+    start: str = Query(
+        default="2022-01-01",
+        regex=r'^\d{4}-\d{2}-\d{2}$',
+        description="Start date in YYYY-MM-DD format"
+    ),
+    end: str = Query(
+        default="2022-12-31",
+        regex=r'^\d{4}-\d{2}-\d{2}$',
+        description="End date in YYYY-MM-DD format"
+    )
+):
     """
     Returns the top 20 customers by revenue for the given date range.
 
@@ -270,6 +328,7 @@ def get_customers(start: str = "2022-01-01", end: str = "2022-12-31"):
           "state": "TX", "total_orders": 14, "total_spent": 1240.50 }
     ]
     """
+    validate_date_range(start, end)
     try:
         conn = get_connection()
         results = execute_query(conn, """
@@ -307,7 +366,18 @@ def get_customers(start: str = "2022-01-01", end: str = "2022-12-31"):
 
 
 @app.get("/franchise/cities", tags=["Franchise"])
-def get_cities(start: str = "2022-01-01", end: str = "2022-12-31"):
+def get_cities(
+    start: str = Query(
+        default="2022-01-01",
+        regex=r'^\d{4}-\d{2}-\d{2}$',
+        description="Start date in YYYY-MM-DD format"
+    ),
+    end: str = Query(
+        default="2022-12-31",
+        regex=r'^\d{4}-\d{2}-\d{2}$',
+        description="End date in YYYY-MM-DD format"
+    )
+):
     """
     Returns revenue grouped by city and state.
     Used to power the geographic breakdown chart.
@@ -317,6 +387,7 @@ def get_cities(start: str = "2022-01-01", end: str = "2022-12-31"):
         { "city": "Austin", "state": "TX", "order_count": 420, "revenue": 38430.00 }
     ]
     """
+    validate_date_range(start, end)
     try:
         conn = get_connection()
         results = execute_query(conn, """
