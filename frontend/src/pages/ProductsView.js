@@ -95,7 +95,7 @@ export default function ProductsView() {
       <div className="page">
 
         {/* Page Header */}
-        <Box sx={{ mb: 3, textAlign: 'center' }}>
+        <Box sx={{ mb: 3, textAlign: 'left' }}>
           <Typography variant="h5" sx={{ fontWeight: 600, mb: 0.5 }}>
             Product Performance
           </Typography>
@@ -104,28 +104,49 @@ export default function ProductsView() {
           </Typography>
         </Box>
 
-        <div className="filter-bar" style={{ marginBottom: 20 }}>
-          <label>From</label>
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-          <label>To</label>
-          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-          <button className="btn-apply" onClick={loadData}>Apply</button>
+        <div className="filter-bar" style={{ marginBottom: 20 }} role="search" aria-label="Filter products by date range">
+          <label htmlFor="start-date">From</label>
+          <input
+            id="start-date"
+            type="date"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+            aria-label="Start date"
+          />
+          <label htmlFor="end-date">To</label>
+          <input
+            id="end-date"
+            type="date"
+            value={endDate}
+            onChange={e => setEndDate(e.target.value)}
+            aria-label="End date"
+          />
+          <button className="btn-apply" onClick={loadData} aria-label="Apply date range filter">Apply</button>
           <Chip
             label="Export CSV"
             onClick={handleExportData}
             clickable
             disabled={products.length === 0}
             sx={{ marginLeft: 'auto' }}
+            aria-label="Export product data as CSV"
           />
         </div>
 
         {error && (
-          <div style={{ color: '#C62828', padding: 16, background: '#FFEBEE', borderRadius: 8, marginBottom: 16 }}>
+          <div
+            role="alert"
+            aria-live="assertive"
+            style={{ color: '#C62828', padding: 16, background: '#FFEBEE', borderRadius: 8, marginBottom: 16 }}
+          >
             Error: {error}
           </div>
         )}
 
-        {loading && <div className="loading">Loading products data…</div>}
+        {loading && (
+          <div className="loading" role="status" aria-live="polite">
+            <span>Loading products data…</span>
+          </div>
+        )}
 
         {!loading && !error && (
           <Paper elevation={2} sx={{ padding: 3, position: 'relative' }}>
@@ -143,7 +164,12 @@ export default function ProductsView() {
 
             <Box className="grid-2" sx={{ gap: 3 }}>
               {/* Chart Section */}
-              <Box ref={productsChartRef} sx={{ position: 'relative' }}>
+              <Box
+                ref={productsChartRef}
+                sx={{ position: 'relative' }}
+                role="img"
+                aria-label="Bar chart showing top 10 products by revenue"
+              >
                 {products.length > 0 && (
                   <ChartExportMenu
                     chartRef={productsChartRef}
@@ -157,31 +183,38 @@ export default function ProductsView() {
                   />
                 )}
                 {products.length > 0 ? (
-                  <BarChart
-                    yAxis={[{
-                      scaleType: 'band',
-                      data: products.slice(0, 10).map(p => {
-                        const maxLength = 18; // Length of "Noise Cancelling"
-                        return p.name.length > maxLength ? p.name.substring(0, maxLength) + '...' : p.name;
-                      }),
-                      tickLabelStyle: { fontSize: 12 }
-                    }]}
-                    xAxis={[{
-                      valueFormatter: (value) => formatCompactCurrency(value),
-                      tickLabelStyle: { fontSize: 11 }
-                    }]}
-                    series={[
-                      {
-                        data: products.slice(0, 10).map(p => p.revenue),
-                        label: 'Revenue',
-                        color: '#4caf50',
-                      },
-                    ]}
-                    layout="horizontal"
-                    height={500}
-                    margin={{ left: 10, right: 10, top: 10, bottom: 40 }}
-                    grid={{ vertical: true }}
-                  />
+                  <>
+                    <BarChart
+                      yAxis={[{
+                        scaleType: 'band',
+                        data: products.slice(0, 10).map(p => {
+                          const maxLength = 18; // Length of "Noise Cancelling"
+                          return p.name.length > maxLength ? p.name.substring(0, maxLength) + '...' : p.name;
+                        }),
+                        tickLabelStyle: { fontSize: 12 }
+                      }]}
+                      xAxis={[{
+                        valueFormatter: (value) => formatCompactCurrency(value),
+                        tickLabelStyle: { fontSize: 11 }
+                      }]}
+                      series={[
+                        {
+                          data: products.slice(0, 10).map(p => p.revenue),
+                          label: 'Revenue',
+                          color: '#4caf50',
+                        },
+                      ]}
+                      layout="horizontal"
+                      height={500}
+                      margin={{ left: 10, right: 10, top: 10, bottom: 40 }}
+                      grid={{ vertical: true }}
+                    />
+                    <div className="sr-only">
+                      Top 10 products by revenue: {products.slice(0, 10).map(p =>
+                        `${p.name}: ${formatCurrency(p.revenue)}`
+                      ).join(', ')}
+                    </div>
+                  </>
                 ) : (
                   <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
                     No product data available
@@ -190,14 +223,14 @@ export default function ProductsView() {
               </Box>
 
               {/* Table Section */}
-              <TableContainer sx={{ maxHeight: 600 }}>
-              <Table stickyHeader>
+              <TableContainer sx={{ maxHeight: 600 }} role="region" aria-label="Product performance data table">
+              <Table stickyHeader aria-label="Product performance with revenue and units sold">
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 600, backgroundColor: 'background.paper' }}>Product Name</TableCell>
-                    <TableCell sx={{ fontWeight: 600, backgroundColor: 'background.paper' }}>Category</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600, backgroundColor: 'background.paper' }}>Units Sold</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600, backgroundColor: 'background.paper' }}>Revenue</TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: 'background.paper' }} scope="col">Product Name</TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: 'background.paper' }} scope="col">Category</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600, backgroundColor: 'background.paper' }} scope="col">Units Sold</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600, backgroundColor: 'background.paper' }} scope="col">Revenue</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -209,11 +242,24 @@ export default function ProductsView() {
                           key={product.product_id}
                           hover
                           onClick={() => handleRowClick(product)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleRowClick(product);
+                            }
+                          }}
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`View details for ${product.name}`}
                           sx={{
                             '&:nth-of-type(odd)': { backgroundColor: 'action.hover' },
                             cursor: 'pointer',
                             '&:hover': {
                               backgroundColor: 'rgba(0, 137, 123, 0.08)'
+                            },
+                            '&:focus': {
+                              outline: '2px solid #00897B',
+                              outlineOffset: '-2px'
                             }
                           }}
                         >
