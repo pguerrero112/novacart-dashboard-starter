@@ -155,6 +155,7 @@ export default function CustomerDetailModal({ customer, open, onClose }) {
                 xAxis={[{ scaleType: 'point', data: spendingData.map(d => d.month) }]}
                 series={[{ data: spendingData.map(d => d.amount), color: '#2196f3', showMark: true }]}
                 height={300}
+                width={500}
                 margin={{ left: 50, right: 20, top: 20, bottom: 30 }}
               />
             </Paper>
@@ -177,6 +178,7 @@ export default function CustomerDetailModal({ customer, open, onClose }) {
                   faded: { innerRadius: 30, additionalRadius: -30 }
                 }]}
                 height={300}
+                width={400}
                 margin={{ top: 0, bottom: 0, left: 0, right: 0 }}
               />
             </Paper>
