@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Paper,
   Table,
@@ -20,10 +21,14 @@ import {
   TableHead,
   TableRow,
   TableSortLabel,
-  Typography
+  Typography,
+  Box,
+  Chip
 } from '@mui/material';
 import Navbar from '../components/Navbar';
+import CustomerDetailModal from '../components/CustomerDetailModal';
 import { getCustomers } from '../utils/api';
+import { exportDataAsCSV } from '../utils/exportUtils';
 
 function formatCurrency(value) {
   if (!value) return '$0';
@@ -38,8 +43,21 @@ export default function CustomersView() {
   const [sortDir,    setSortDir]    = useState('desc');
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState(null);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => { loadData(); }, []);
+
+  // Handle opening modal from URL parameter
+  useEffect(() => {
+    const customerId = searchParams.get('view');
+    if (customerId && customers.length > 0) {
+      const customer = customers.find(c => c.customer_id === parseInt(customerId));
+      if (customer) {
+        setSelectedCustomer(customer);
+      }
+    }
+  }, [searchParams, customers]);
 
   async function loadData() {
     setLoading(true);
@@ -73,13 +91,34 @@ export default function CustomersView() {
       : String(vb).localeCompare(String(va));
   });
 
-  // Sort indicator helper
-  const sortIcon = (col) => sortBy === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+  const handleRowClick = (customer) => {
+    setSelectedCustomer(customer);
+    setSearchParams({ view: customer.customer_id });
+  };
+
+  const handleCloseModal = () => {
+    setSelectedCustomer(null);
+    setSearchParams({});
+  };
+
+  const handleExportData = () => {
+    exportDataAsCSV(customers, `customers-${startDate}-to-${endDate}`);
+  };
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
       <Navbar />
       <div className="page">
+
+        {/* Page Header */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, mb: 0.5 }}>
+            Customer Analytics
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            View and analyze customer purchasing behavior
+          </Typography>
+        </Box>
 
         <div className="filter-bar">
           <label>From</label>
@@ -87,9 +126,13 @@ export default function CustomersView() {
           <label>To</label>
           <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
           <button className="btn-apply" onClick={loadData}>Apply</button>
-          <span style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--text-muted)' }}>
-            {customers.length} customers
-          </span>
+          <Chip
+            label="Export CSV"
+            onClick={handleExportData}
+            clickable
+            disabled={customers.length === 0}
+            sx={{ marginLeft: 'auto' }}
+          />
         </div>
 
         {error && (
@@ -161,7 +204,14 @@ export default function CustomersView() {
                     <TableRow
                       key={customer.customer_id}
                       hover
-                      sx={{ '&:nth-of-type(odd)': { backgroundColor: 'action.hover' } }}
+                      onClick={() => handleRowClick(customer)}
+                      sx={{
+                        '&:nth-of-type(odd)': { backgroundColor: 'action.hover' },
+                        cursor: 'pointer',
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 137, 123, 0.08)'
+                        }
+                      }}
                     >
                       <TableCell>{customer.name}</TableCell>
                       <TableCell>{customer.city}</TableCell>
@@ -183,6 +233,13 @@ export default function CustomersView() {
             </Table>
           </TableContainer>
         )}
+
+        {/* Customer Detail Modal */}
+        <CustomerDetailModal
+          customer={selectedCustomer}
+          open={Boolean(selectedCustomer)}
+          onClose={handleCloseModal}
+        />
       </div>
     </div>
   );

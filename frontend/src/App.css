@@ -9,6 +9,26 @@
   --blue:         #1565C0;
   --shadow:       0 2px 12px rgba(0,0,0,0.08);
   --radius:       10px;
+
+  /* Spacing tokens */
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+
+  /* Font size tokens */
+  --font-size-xs: 11px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 20px;
+
+  /* Animation tokens */
+  --animation-fast: 150ms;
+  --animation-base: 250ms;
+  --animation-slow: 350ms;
 }
 
 [data-theme="dark"] {
@@ -139,26 +159,7 @@ body {
   transition: all 0.2s ease;
 }
 
-/* Scrollbar styling for dark mode */
-[data-theme="dark"] ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-[data-theme="dark"] ::-webkit-scrollbar-track {
-  background: var(--bg-card);
-}
-
-[data-theme="dark"] ::-webkit-scrollbar-thumb {
-  background: #455A64;
-  border-radius: 5px;
-}
-
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
-  background: #607D8B;
-}
-
-/* Light mode scrollbar */
+/* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
