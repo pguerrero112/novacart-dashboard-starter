@@ -1,10 +1,10 @@
 /**
  * GlobalSearch.js - Global search component for navbar
  *
- * Searches across products and customers with minimal UI
+ * Server-side search across products and customers with debouncing
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   TextField,
@@ -16,7 +16,8 @@ import {
   ListItemText,
   Typography,
   Box,
-  Divider
+  Divider,
+  CircularProgress
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
@@ -24,37 +25,53 @@ import PersonIcon from '@mui/icons-material/Person';
 import InventoryIcon from '@mui/icons-material/Inventory';
 
 import { useTheme } from '../utils/ThemeContext';
+import { search } from '../utils/api';
 
-export default function GlobalSearch({ customers, products, onResultClick }) {
+export default function GlobalSearch({ onResultClick }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState({ customers: [], products: [] });
   const [showResults, setShowResults] = useState(false);
+  const [loading, setLoading] = useState(false);
   const { dark } = useTheme();
   const navigate = useNavigate();
+  const debounceTimer = useRef(null);
 
   useEffect(() => {
+    // Clear results if query is too short
     if (!query || query.length < 2) {
       setResults({ customers: [], products: [] });
+      setLoading(false);
       return;
     }
 
-    const searchLower = query.toLowerCase();
+    // Set loading state
+    setLoading(true);
 
-    // Search customers
-    const customerMatches = (customers || []).filter(c =>
-      c.name?.toLowerCase().includes(searchLower) ||
-      c.city?.toLowerCase().includes(searchLower) ||
-      c.state?.toLowerCase().includes(searchLower)
-    ).slice(0, 3);
+    // Clear previous debounce timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
 
-    // Search products
-    const productMatches = (products || []).filter(p =>
-      p.name?.toLowerCase().includes(searchLower) ||
-      p.category?.toLowerCase().includes(searchLower)
-    ).slice(0, 3);
+    // Debounce API call by 300ms
+    debounceTimer.current = setTimeout(async () => {
+      try {
+        const data = await search(query, 5); // Limit to 5 results per category
+        setResults(data);
+      } catch (error) {
+        console.error('Search error:', error);
+        setResults({ customers: [], products: [] });
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
 
-    setResults({ customers: customerMatches, products: productMatches });
-  }, [query, customers, products]);
+    // Cleanup
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, [query]);
 
   const handleResultClick = (type, item) => {
     setQuery('');
@@ -74,6 +91,7 @@ export default function GlobalSearch({ customers, products, onResultClick }) {
   return (
     <Box sx={{ position: 'relative', width: 300 }}>
       <TextField
+        fullWidth
         size="small"
         placeholder="Search products, customers..."
         value={query}
@@ -83,14 +101,37 @@ export default function GlobalSearch({ customers, products, onResultClick }) {
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
-              <SearchIcon fontSize="small" sx={{ color: dark ? '#fff' : '#455A64' }} />
+              {loading ? (
+                <CircularProgress size={16} sx={{ color: dark ? '#fff' : '#455A64' }} />
+              ) : (
+                <SearchIcon fontSize="small" sx={{ color: dark ? '#fff' : '#455A64' }} />
+              )}
             </InputAdornment>
           ),
-          endAdornment: query && (
+          endAdornment: (
             <InputAdornment position="end">
-              <IconButton size="small" onClick={handleClear}>
-                <CloseIcon fontSize="small" sx={{ color: dark ? '#fff' : '#455A64' }} />
-              </IconButton>
+              {query && (
+                <IconButton
+                  size="small"
+                  onClick={handleClear}
+                  edge="end"
+                  aria-label="Clear search"
+                  sx={{
+                    padding: '8px',
+                    marginRight: '-8px',
+                    '&:hover': {
+                      backgroundColor: dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'
+                    }
+                  }}
+                >
+                  <CloseIcon
+                    sx={{
+                      color: dark ? '#fff' : '#000',
+                      fontSize: '20px'
+                    }}
+                  />
+                </IconButton>
+              )}
             </InputAdornment>
           ),
           sx: {

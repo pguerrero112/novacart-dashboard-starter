@@ -132,6 +132,7 @@ export default function ProductDetailModal({ product, open, onClose }) {
                 xAxis={[{ scaleType: 'point', data: salesData.map(d => d.month) }]}
                 series={[{ data: salesData.map(d => d.units), color: '#4caf50', showMark: true, curve: 'linear' }]}
                 height={300}
+                width={500}
                 margin={{ left: 50, right: 20, top: 20, bottom: 30 }}
               />
             </Paper>
@@ -152,6 +153,7 @@ export default function ProductDetailModal({ product, open, onClose }) {
                 series={[{ data: cityData.map(d => d.revenue), color: '#ff9800' }]}
                 layout="horizontal"
                 height={300}
+                width={400}
                 margin={{ left: 80, right: 20, top: 20, bottom: 30 }}
               />
             </Paper>

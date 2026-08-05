@@ -23,33 +23,12 @@ import { useAuth } from '../utils/AuthContext';
 import { useTheme } from '../utils/ThemeContext';
 import ServiceStatus from './ServiceStatus';
 import GlobalSearch from './GlobalSearch';
-import { getCustomers, getProducts } from '../utils/api';
-
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
   const { dark, toggle } = useTheme();
   const [signOutDialog, setSignOutDialog] = useState(false);
-  const [customers, setCustomers] = useState([]);
-  const [products, setProducts] = useState([]);
-
-  // Load data for search on mount
-  useEffect(() => {
-    const loadSearchData = async () => {
-      try {
-        const [customerData, productData] = await Promise.all([
-          getCustomers('2022-01-01', '2022-12-31'),
-          getProducts('2022-01-01', '2022-12-31')
-        ]);
-        setCustomers(customerData);
-        setProducts(productData);
-      } catch (error) {
-        console.error('Error loading search data:', error);
-      }
-    };
-    loadSearchData();
-  }, []);
 
   const links = [
     { label: 'Orders', path: '/orders', icon: <BarChartIcon sx={{ mr: 0.5 }} /> },
@@ -129,14 +108,15 @@ export default function Navbar() {
             })}
           </Box>
 
-          {/* Center: Global Search */}
-          <Box sx={{ flexGrow: 0.3, display: 'flex', justifyContent: 'center' }}>
+          {/* Left: Global Search */}
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <GlobalSearch
-              customers={customers}
-              products={products}
               onResultClick={handleSearchResultClick}
             />
           </Box>
+
+          {/* Spacer */}
+          <Box sx={{ flexGrow: 4 }} />
 
           {/* Right side: Service Status + Theme Toggle + Sign Out */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>

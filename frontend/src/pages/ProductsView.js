@@ -29,7 +29,7 @@ import { BarChart } from '@mui/x-charts/BarChart';
 import Navbar from '../components/Navbar';
 import ProductDetailModal from '../components/ProductDetailModal';
 import ChartExportMenu from '../components/ChartExportMenu';
-import { getProducts } from '../utils/api';
+import { getProducts, getProductById } from '../utils/api';
 import { exportDataAsCSV, formatCompactCurrency } from '../utils/exportUtils';
 
 // Format currency helper
@@ -55,12 +55,25 @@ export default function ProductsView() {
   useEffect(() => {
     const productId = searchParams.get('view');
     if (productId && products.length > 0) {
-      const product = products.find(p => p.product_id === parseInt(productId));
+      // Compare as strings to handle both string and number IDs
+      const product = products.find(p => String(p.product_id) === String(productId));
       if (product) {
         setSelectedProduct(product);
+      } else {
+        // Product not in top 10, fetch individually
+        fetchIndividualProduct(productId);
       }
     }
   }, [searchParams, products]);
+
+  async function fetchIndividualProduct(productId) {
+    try {
+      const product = await getProductById(productId, startDate, endDate);
+      setSelectedProduct(product);
+    } catch (error) {
+      console.error('Error fetching product:', error);
+    }
+  }
 
   async function loadData() {
     setLoading(true);

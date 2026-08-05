@@ -27,7 +27,7 @@ import {
 } from '@mui/material';
 import Navbar from '../components/Navbar';
 import CustomerDetailModal from '../components/CustomerDetailModal';
-import { getCustomers } from '../utils/api';
+import { getCustomers, getCustomerById } from '../utils/api';
 import { exportDataAsCSV } from '../utils/exportUtils';
 
 function formatCurrency(value) {
@@ -52,12 +52,25 @@ export default function CustomersView() {
   useEffect(() => {
     const customerId = searchParams.get('view');
     if (customerId && customers.length > 0) {
-      const customer = customers.find(c => c.customer_id === parseInt(customerId));
+      // Compare as strings to handle both string and number IDs
+      const customer = customers.find(c => String(c.customer_id) === String(customerId));
       if (customer) {
         setSelectedCustomer(customer);
+      } else {
+        // Customer not in top 20, fetch individually
+        fetchIndividualCustomer(customerId);
       }
     }
   }, [searchParams, customers]);
+
+  async function fetchIndividualCustomer(customerId) {
+    try {
+      const customer = await getCustomerById(customerId, startDate, endDate);
+      setSelectedCustomer(customer);
+    } catch (error) {
+      console.error('Error fetching customer:', error);
+    }
+  }
 
   async function loadData() {
     setLoading(true);
