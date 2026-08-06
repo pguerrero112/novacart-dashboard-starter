@@ -275,7 +275,8 @@ export default function OrdersView() {
                       label: 'Revenue',
                       color: '#2196f3',
                       curve: 'linear',
-                      showMark: true
+                      showMark: true,
+                      valueFormatter: (value) => `$${value != null ? value.toLocaleString() : 0}`,
                     },
                   ]}
                   height={400}
@@ -337,6 +338,7 @@ export default function OrdersView() {
                       data: cities.slice(0, 10).map(c => c.revenue),
                       label: 'Revenue',
                       color: '#4caf50',
+                      valueFormatter: (value) => `$${value != null ? value.toLocaleString() : 0}`,
                     },
                   ]}
                   layout="horizontal"

@@ -153,7 +153,7 @@ export default function CustomerDetailModal({ customer, open, onClose }) {
               />
               <LineChart
                 xAxis={[{ scaleType: 'point', data: spendingData.map(d => d.month) }]}
-                series={[{ data: spendingData.map(d => d.amount), color: '#2196f3', showMark: true }]}
+                series={[{ data: spendingData.map(d => d.amount), color: '#2196f3', showMark: true, valueFormatter: (value) => `$${value != null ? value.toLocaleString() : 0}` }]}
                 height={300}
                 width={500}
                 margin={{ left: 50, right: 20, top: 20, bottom: 30 }}
@@ -175,7 +175,8 @@ export default function CustomerDetailModal({ customer, open, onClose }) {
                 series={[{
                   data: categoryData,
                   highlightScope: { faded: 'global', highlighted: 'item' },
-                  faded: { innerRadius: 30, additionalRadius: -30 }
+                  faded: { innerRadius: 30, additionalRadius: -30 },
+                  valueFormatter: (item) => `${item.value}%`
                 }]}
                 height={300}
                 width={400}

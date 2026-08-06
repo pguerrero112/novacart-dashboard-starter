@@ -232,6 +232,7 @@ export default function ProductsView() {
                           data: products.slice(0, 10).map(p => p.revenue),
                           label: 'Revenue',
                           color: '#4caf50',
+                          valueFormatter: (value) => `$${value != null ? value.toLocaleString() : 0}`,
                         },
                       ]}
                       layout="horizontal"
