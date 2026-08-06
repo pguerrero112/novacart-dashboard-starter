@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Paper,
   Table,
@@ -21,13 +22,13 @@ import {
   TableRow,
   TableSortLabel,
   Typography,
-  TextField,
-  Button,
-  Box
+  Box,
+  Chip
 } from '@mui/material';
 import Navbar from '../components/Navbar';
-import { getCustomers } from '../utils/api';
-import { validateDateFormat, validateDateRange } from '../utils/dateValidation';
+import CustomerDetailModal from '../components/CustomerDetailModal';
+import { getCustomers, getCustomerById } from '../utils/api';
+import { exportDataAsCSV } from '../utils/exportUtils';
 
 function formatCurrency(value) {
   if (!value) return '$0';
@@ -42,29 +43,48 @@ export default function CustomersView() {
   const [sortDir,    setSortDir]    = useState('desc');
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState(null);
-  const [dateErrors, setDateErrors] = useState({ start: '', end: '', range: '' });
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => { loadData(); }, []);
 
+  // Handle opening modal from URL parameter
+  useEffect(() => {
+    const customerId = searchParams.get('view');
+    if (customerId && customers.length > 0) {
+      // Compare as strings to handle both string and number IDs
+      const customer = customers.find(c => String(c.customer_id) === String(customerId));
+      if (customer) {
+        setSelectedCustomer(customer);
+      } else {
+        // Customer not in top 20, fetch individually
+        fetchIndividualCustomer(customerId);
+      }
+    }
+  }, [searchParams, customers]);
+
+  async function fetchIndividualCustomer(customerId) {
+    try {
+      const customer = await getCustomerById(customerId, startDate, endDate);
+      setSelectedCustomer(customer);
+    } catch (error) {
+      console.error('Error fetching customer:', error);
+    }
+  }
+
+  const validateDateFormat = (dateStr) => {
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!regex.test(dateStr)) return false;
+    const date = new Date(dateStr);
+    return date instanceof Date && !isNaN(date);
+  };
+
+  const validateDateRange = (start, end) => {
+    return new Date(start) <= new Date(end);
+  };
+
   const validateDates = () => {
-    const errors = { start: '', end: '', range: '' };
-    let isValid = true;
-
-    if (!validateDateFormat(startDate)) {
-      errors.start = 'Invalid date format (YYYY-MM-DD)';
-      isValid = false;
-    }
-    if (!validateDateFormat(endDate)) {
-      errors.end = 'Invalid date format (YYYY-MM-DD)';
-      isValid = false;
-    }
-    if (isValid && !validateDateRange(startDate, endDate)) {
-      errors.range = 'Start date must be before or equal to end date';
-      isValid = false;
-    }
-
-    setDateErrors(errors);
-    return isValid;
+    return validateDateFormat(startDate) && validateDateFormat(endDate) && validateDateRange(startDate, endDate);
   };
 
   async function loadData() {
@@ -101,54 +121,49 @@ export default function CustomersView() {
       : String(vb).localeCompare(String(va));
   });
 
-  // Sort indicator helper
-  const sortIcon = (col) => sortBy === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+  const handleRowClick = (customer) => {
+    setSelectedCustomer(customer);
+    setSearchParams({ view: customer.customer_id });
+  };
+
+  const handleCloseModal = () => {
+    setSelectedCustomer(null);
+    setSearchParams({});
+  };
+
+  const handleExportData = () => {
+    exportDataAsCSV(customers, `customers-${startDate}-to-${endDate}`);
+  };
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
       <Navbar />
       <div className="page">
 
-        <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          <TextField
-            label="From"
-            type="date"
-            value={startDate}
-            onChange={e => setStartDate(e.target.value)}
-            error={!!dateErrors.start}
-            helperText={dateErrors.start}
-            InputLabelProps={{ shrink: true }}
-            size="small"
-            sx={{ minWidth: 200 }}
-          />
-          <TextField
-            label="To"
-            type="date"
-            value={endDate}
-            onChange={e => setEndDate(e.target.value)}
-            error={!!dateErrors.end}
-            helperText={dateErrors.end}
-            InputLabelProps={{ shrink: true }}
-            size="small"
-            sx={{ minWidth: 200 }}
-          />
-          <Button
-            variant="contained"
-            onClick={loadData}
-            size="medium"
-            sx={{ height: 40 }}
-          >
-            Apply
-          </Button>
-          <Typography variant="body2" color="text.secondary" sx={{ ml: 'auto', alignSelf: 'center' }}>
-            {customers.length} customers
+        {/* Page Header */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, mb: 0.5 }}>
+            Customer Analytics
           </Typography>
-          {dateErrors.range && (
-            <Typography variant="body2" color="error" sx={{ width: '100%', mt: -1 }}>
-              {dateErrors.range}
-            </Typography>
-          )}
+          <Typography variant="body2" color="text.secondary">
+            View and analyze customer purchasing behavior
+          </Typography>
         </Box>
+
+        <div className="filter-bar">
+          <label>From</label>
+          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+          <label>To</label>
+          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+          <button className="btn-apply" onClick={loadData}>Apply</button>
+          <Chip
+            label="Export CSV"
+            onClick={handleExportData}
+            clickable
+            disabled={customers.length === 0}
+            sx={{ marginLeft: 'auto' }}
+          />
+        </div>
 
         {error && (
           <div style={{ color: '#C62828', padding: 16, background: '#FFEBEE', borderRadius: 8, marginBottom: 16 }}>
@@ -219,7 +234,14 @@ export default function CustomersView() {
                     <TableRow
                       key={customer.customer_id}
                       hover
-                      sx={{ '&:nth-of-type(odd)': { backgroundColor: 'action.hover' } }}
+                      onClick={() => handleRowClick(customer)}
+                      sx={{
+                        '&:nth-of-type(odd)': { backgroundColor: 'action.hover' },
+                        cursor: 'pointer',
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 137, 123, 0.08)'
+                        }
+                      }}
                     >
                       <TableCell>{customer.name}</TableCell>
                       <TableCell>{customer.city}</TableCell>
@@ -241,6 +263,13 @@ export default function CustomersView() {
             </Table>
           </TableContainer>
         )}
+
+        {/* Customer Detail Modal */}
+        <CustomerDetailModal
+          customer={selectedCustomer}
+          open={Boolean(selectedCustomer)}
+          onClose={handleCloseModal}
+        />
       </div>
     </div>
   );

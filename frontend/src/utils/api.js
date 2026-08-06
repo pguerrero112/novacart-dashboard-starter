@@ -25,3 +25,6 @@ export async function getOrders(s, e)   { return apiFetch(`/franchise/orders?sta
 export async function getProducts(s, e) { return apiFetch(`/franchise/products?start=${s}&end=${e}`); }
 export async function getCustomers(s,e) { return apiFetch(`/franchise/customers?start=${s}&end=${e}`); }
 export async function getCities(s, e)   { return apiFetch(`/franchise/cities?start=${s}&end=${e}`); }
+export async function search(query, limit = 10) { return apiFetch(`/franchise/search?query=${encodeURIComponent(query)}&limit=${limit}`); }
+export async function getCustomerById(id, s, e) { return apiFetch(`/franchise/customer/${id}?start=${s}&end=${e}`); }
+export async function getProductById(id, s, e)  { return apiFetch(`/franchise/product/${id}?start=${s}&end=${e}`); }

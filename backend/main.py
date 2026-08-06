@@ -183,9 +183,9 @@ def get_summary():
 
         row = results[0]
         return {
-            "total_revenue":     round(row["total_revenue"] or 0, 2),
-            "total_orders":      row["total_orders"],
-            "unique_customers":  row["unique_customers"],
+            "total_revenue":     round(float(row["total_revenue"] or 0), 2),
+            "total_orders":      int(row["total_orders"]),
+            "unique_customers":  int(row["unique_customers"]),
             "date_range": {"start": row["start_date"], "end": row["end_date"]},
         }
     except Exception as e:
@@ -224,7 +224,7 @@ def get_orders(
         conn = get_connection()
         results = execute_query(conn, """
             SELECT
-                printf('%04d-%02d', d.year, d.month) AS month,
+                TO_CHAR(TO_DATE(d.year || '-' || LPAD(d.month, 2, '0') || '-01', 'YYYY-MM-DD'), 'YYYY-MM') AS month,
                 d.month_name,
                 COUNT(DISTINCT o.order_id) AS order_count,
                 SUM(o.amount) AS revenue
@@ -241,8 +241,8 @@ def get_orders(
             {
                 "month": row["month"],
                 "month_name": row["month_name"],
-                "order_count": row["order_count"],
-                "revenue": round(row["revenue"], 2)
+                "order_count": int(row["order_count"]),
+                "revenue": round(float(row["revenue"]), 2)
             }
             for row in results
         ]
@@ -297,8 +297,8 @@ def get_products(
                 "product_id": row["product_id"],
                 "name": row["name"],
                 "category": row["category"],
-                "units_sold": row["units_sold"],
-                "revenue": round(row["revenue"], 2)
+                "units_sold": int(row["units_sold"]),
+                "revenue": round(float(row["revenue"]), 2)
             }
             for row in results
         ]
@@ -356,8 +356,8 @@ def get_customers(
                 "name": row["name"],
                 "city": row["city"],
                 "state": row["state"],
-                "total_orders": row["total_orders"],
-                "total_spent": round(row["total_spent"], 2)
+                "total_orders": int(row["total_orders"]),
+                "total_spent": round(float(row["total_spent"]), 2)
             }
             for row in results
         ]
@@ -398,10 +398,183 @@ def get_cities(start: str = "2022-01-01", end: str = "2022-12-31"):
             {
                 "city": row["city"],
                 "state": row["state"],
-                "order_count": row["order_count"],
-                "revenue": round(row["revenue"], 2)
+                "order_count": int(row["order_count"]),
+                "revenue": round(float(row["revenue"]), 2)
             }
             for row in results
         ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.get("/franchise/customer/{customer_id}", tags=["Franchise"])
+def get_customer_by_id(customer_id: str, start: str = "2022-01-01", end: str = "2022-12-31"):
+    """
+    Get a specific customer by ID with their purchase history.
+
+    Returns customer details and total orders/spending for the date range.
+    """
+    try:
+        conn = get_connection()
+        results = execute_query(conn, """
+            SELECT
+                c.customer_id,
+                c.name,
+                c.addr_city AS city,
+                c.addr_state AS state,
+                COUNT(DISTINCT o.order_id) AS total_orders,
+                SUM(o.amount) AS total_spent
+            FROM dim_customer c
+            LEFT JOIN fact_orders o ON c.customer_id = o.customer_id
+                AND o.status IN ('delivered', 'shipped')
+                AND o.order_date BETWEEN ? AND ?
+            WHERE c.is_current = 1
+              AND c.customer_id = ?
+            GROUP BY c.customer_id, c.name, c.addr_city, c.addr_state
+        """, (start, end, customer_id))
+
+        if not results:
+            raise HTTPException(status_code=404, detail=f"Customer {customer_id} not found")
+
+        row = results[0]
+        return {
+            "customer_id": row["customer_id"],
+            "name": row["name"],
+            "city": row["city"],
+            "state": row["state"],
+            "total_orders": row["total_orders"] or 0,
+            "total_spent": round(row["total_spent"] or 0, 2)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.get("/franchise/product/{product_id}", tags=["Franchise"])
+def get_product_by_id(product_id: str, start: str = "2022-01-01", end: str = "2022-12-31"):
+    """
+    Get a specific product by ID with sales data.
+
+    Returns product details and units sold/revenue for the date range.
+    """
+    try:
+        conn = get_connection()
+        results = execute_query(conn, """
+            SELECT
+                p.product_id,
+                p.name,
+                p.category,
+                COALESCE(SUM(o.quantity), 0) AS units_sold,
+                COALESCE(SUM(o.amount), 0) AS revenue
+            FROM dim_product p
+            LEFT JOIN fact_orders o ON p.product_id = o.product_id
+                AND o.status IN ('delivered', 'shipped')
+                AND o.order_date BETWEEN ? AND ?
+            WHERE p.product_id = ?
+            GROUP BY p.product_id, p.name, p.category
+        """, (start, end, product_id))
+
+        if not results:
+            raise HTTPException(status_code=404, detail=f"Product {product_id} not found")
+
+        row = results[0]
+        return {
+            "product_id": row["product_id"],
+            "name": row["name"],
+            "category": row["category"],
+            "units_sold": row["units_sold"],
+            "revenue": round(row["revenue"], 2)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.get("/franchise/search", tags=["Franchise"])
+def search(query: str, limit: int = 10):
+    """
+    Server-side search across products and customers.
+    Returns top matching results for the given query string.
+
+    Query parameters:
+      query: search string (minimum 2 characters)
+      limit: maximum number of results per category (default 10, max 20)
+
+    Expected response:
+    {
+        "customers": [
+            { "customer_id": "C001", "name": "Alice Johnson", "city": "Austin", "state": "TX" }
+        ],
+        "products": [
+            { "product_id": "P001", "name": "Wireless Headphones", "category": "Electronics" }
+        ]
+    }
+    """
+    # Validate query
+    if not query or len(query) < 2:
+        raise HTTPException(status_code=400, detail="Query must be at least 2 characters")
+
+    # Validate limit
+    if limit < 1 or limit > 20:
+        raise HTTPException(status_code=400, detail="Limit must be between 1 and 20")
+
+    try:
+        conn = get_connection()
+
+        # Search pattern for LIKE queries (case-insensitive)
+        search_pattern = f"%{query}%"
+
+        # Search customers
+        customer_results = execute_query(conn, """
+            SELECT DISTINCT
+                c.customer_id,
+                c.name,
+                c.addr_city AS city,
+                c.addr_state AS state
+            FROM dim_customer c
+            WHERE c.is_current = 1
+              AND (
+                  LOWER(c.name) LIKE LOWER(?)
+                  OR LOWER(c.addr_city) LIKE LOWER(?)
+                  OR LOWER(c.addr_state) LIKE LOWER(?)
+              )
+            ORDER BY c.name
+            LIMIT ?
+        """, (search_pattern, search_pattern, search_pattern, limit))
+
+        # Search products
+        product_results = execute_query(conn, """
+            SELECT DISTINCT
+                p.product_id,
+                p.name,
+                p.category
+            FROM dim_product p
+            WHERE LOWER(p.name) LIKE LOWER(?)
+               OR LOWER(p.category) LIKE LOWER(?)
+            ORDER BY p.name
+            LIMIT ?
+        """, (search_pattern, search_pattern, limit))
+
+        return {
+            "customers": [
+                {
+                    "customer_id": row["customer_id"],
+                    "name": row["name"],
+                    "city": row["city"],
+                    "state": row["state"]
+                }
+                for row in customer_results
+            ],
+            "products": [
+                {
+                    "product_id": row["product_id"],
+                    "name": row["name"],
+                    "category": row["category"]
+                }
+                for row in product_results
+            ]
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

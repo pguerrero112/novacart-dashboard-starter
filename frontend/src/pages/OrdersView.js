@@ -14,16 +14,17 @@
  *   - recharts: BarChart, LineChart, XAxis, YAxis, Tooltip, ResponsiveContainer
  */
 
-import React, { useState, useEffect } from 'react';
-import { Grid, Card, CardContent, Typography, Box, Paper, TextField, Button } from '@mui/material';
+import React, { useState, useEffect, useRef } from 'react';
+import { Grid, Card, CardContent, Typography, Box, Paper, Chip, TextField, Button } from '@mui/material';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { BarChart } from '@mui/x-charts/BarChart';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import PeopleIcon from '@mui/icons-material/People';
 import Navbar from '../components/Navbar';
+import ChartExportMenu from '../components/ChartExportMenu';
 import { getSummary, getOrders, getCities } from '../utils/api';
-import { validateDateFormat, validateDateRange } from '../utils/dateValidation';
+import { formatCompactCurrency, exportDataAsCSV } from '../utils/exportUtils';
 
 export default function OrdersView() {
   const [startDate, setStartDate] = useState('2022-01-01');
@@ -35,7 +36,21 @@ export default function OrdersView() {
   const [error,     setError]     = useState(null);
   const [dateErrors, setDateErrors] = useState({ start: '', end: '', range: '' });
 
+  const revenueChartRef = useRef(null);
+  const cityChartRef = useRef(null);
+
   useEffect(() => { loadData(); }, []);
+
+  const validateDateFormat = (dateStr) => {
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!regex.test(dateStr)) return false;
+    const date = new Date(dateStr);
+    return date instanceof Date && !isNaN(date);
+  };
+
+  const validateDateRange = (start, end) => {
+    return new Date(start) <= new Date(end);
+  };
 
   const validateDates = () => {
     const errors = { start: '', end: '', range: '' };
@@ -79,10 +94,28 @@ export default function OrdersView() {
     }
   }
 
+  const handleExportOrders = () => {
+    exportDataAsCSV(orders, `orders-${startDate}-to-${endDate}`);
+  };
+
+  const handleExportCities = () => {
+    exportDataAsCSV(cities, `cities-${startDate}-to-${endDate}`);
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
       <Navbar />
       <div className="page">
+
+        {/* Page Header */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, mb: 0.5 }}>
+            Orders Overview
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Monitor revenue, orders, and customer trends
+          </Typography>
+        </Box>
 
         {/* ── Filter bar ─────────────────────────────────────────────────── */}
         <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -197,28 +230,58 @@ export default function OrdersView() {
             </Grid>
 
             {/* Monthly Revenue Chart */}
-            <Paper elevation={2} sx={{ padding: 3, marginBottom: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Monthly Revenue
-              </Typography>
+            <Paper elevation={2} sx={{ padding: 3, marginBottom: 3, position: 'relative' }} ref={revenueChartRef}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box>
+                  <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+                    Monthly Revenue
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Showing total revenue by month for selected period
+                  </Typography>
+                </Box>
+                {orders.length > 0 && (
+                  <Chip
+                    label="Export CSV"
+                    size="small"
+                    onClick={handleExportOrders}
+                    clickable
+                  />
+                )}
+              </Box>
+              {orders.length > 0 && (
+                <ChartExportMenu
+                  chartRef={revenueChartRef}
+                  data={{ x: orders.map(o => o.month_name), y: orders.map(o => o.revenue) }}
+                  xLabel="Month"
+                  yLabel="Revenue ($)"
+                  filename="monthly-revenue"
+                />
+              )}
               {orders.length > 0 ? (
                 <LineChart
                   xAxis={[{
                     scaleType: 'point',
                     data: orders.map(o => o.month_name),
-                    label: 'Month'
+                    tickLabelStyle: { fontSize: 12 }
+                  }]}
+                  yAxis={[{
+                    valueFormatter: (value) => formatCompactCurrency(value),
+                    tickLabelStyle: { fontSize: 11 }
                   }]}
                   series={[
                     {
                       data: orders.map(o => o.revenue),
-                      label: 'Revenue ($)',
+                      label: 'Revenue',
                       color: '#2196f3',
                       curve: 'linear',
-                      showMark: true
+                      showMark: true,
+                      valueFormatter: (value) => `$${value != null ? value.toLocaleString() : 0}`,
                     },
                   ]}
-                  height={300}
+                  height={400}
                   margin={{ left: 70, right: 20, top: 20, bottom: 40 }}
+                  grid={{ horizontal: true }}
                 />
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
@@ -228,26 +291,60 @@ export default function OrdersView() {
             </Paper>
 
             {/* Revenue by City Chart */}
-            <Paper elevation={2} sx={{ padding: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Revenue by City (Top 10)
-              </Typography>
+            <Paper elevation={2} sx={{ padding: 3, position: 'relative' }} ref={cityChartRef}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box>
+                  <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+                    Revenue by City (Top 10)
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Top performing cities by total revenue
+                  </Typography>
+                </Box>
+                {cities.length > 0 && (
+                  <Chip
+                    label="Export CSV"
+                    size="small"
+                    onClick={handleExportCities}
+                    clickable
+                  />
+                )}
+              </Box>
+              {cities.length > 0 && (
+                <ChartExportMenu
+                  chartRef={cityChartRef}
+                  data={{ x: cities.slice(0, 10).map(c => `${c.city}, ${c.state}`), y: cities.slice(0, 10).map(c => c.revenue) }}
+                  xLabel="City"
+                  yLabel="Revenue ($)"
+                  filename="revenue-by-city"
+                />
+              )}
               {cities.length > 0 ? (
                 <BarChart
                   yAxis={[{
                     scaleType: 'band',
-                    data: cities.slice(0, 10).map(c => `${c.city}, ${c.state}`),
+                    data: cities.slice(0, 10).map(c => {
+                      const cityState = `${c.city}, ${c.state}`;
+                      return cityState.length > 18 ? cityState.substring(0, 18) + '...' : cityState;
+                    }),
+                    tickLabelStyle: { fontSize: 12 }
+                  }]}
+                  xAxis={[{
+                    valueFormatter: (value) => formatCompactCurrency(value),
+                    tickLabelStyle: { fontSize: 11 }
                   }]}
                   series={[
                     {
                       data: cities.slice(0, 10).map(c => c.revenue),
-                      label: 'Revenue ($)',
-                      color: '#f50057',
+                      label: 'Revenue',
+                      color: '#4caf50',
+                      valueFormatter: (value) => `$${value != null ? value.toLocaleString() : 0}`,
                     },
                   ]}
                   layout="horizontal"
-                  height={400}
-                  margin={{ left: 150, right: 20, top: 20, bottom: 40 }}
+                  height={500}
+                  margin={{ left: 10, right: 10, top: 10, bottom: 40 }}
+                  grid={{ vertical: true }}
                 />
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>

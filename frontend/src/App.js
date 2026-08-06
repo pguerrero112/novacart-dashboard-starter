@@ -4,6 +4,9 @@ import { ThemeProvider as CustomThemeProvider, useTheme } from './utils/ThemeCon
 import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { getMuiTheme } from './theme';
+import { AuthProvider } from './utils/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import LoginView from './pages/LoginView';
 import OrdersView   from './pages/OrdersView';
 import ProductsView from './pages/ProductsView';
 import CustomersView from './pages/CustomersView';
@@ -18,11 +21,40 @@ function AppContent() {
       <CssBaseline />
       <BrowserRouter>
         <Routes>
-          <Route path="/"          element={<Navigate to="/orders" replace />} />
-          <Route path="/orders"    element={<OrdersView />} />
-          <Route path="/products"  element={<ProductsView />} />
-          <Route path="/customers" element={<CustomersView />} />
-          <Route path="*"          element={<Navigate to="/orders" replace />} />
+          <Route path="/login" element={<LoginView />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Navigate to="/orders" replace />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders"
+            element={
+              <ProtectedRoute>
+                <OrdersView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/products"
+            element={
+              <ProtectedRoute>
+                <ProductsView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customers"
+            element={
+              <ProtectedRoute>
+                <CustomersView />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/orders" replace />} />
         </Routes>
       </BrowserRouter>
     </MuiThemeProvider>
@@ -32,7 +64,9 @@ function AppContent() {
 export default function App() {
   return (
     <CustomThemeProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </CustomThemeProvider>
   );
 }
