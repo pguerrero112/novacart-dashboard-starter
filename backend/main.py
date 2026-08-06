@@ -366,18 +366,7 @@ def get_customers(
 
 
 @app.get("/franchise/cities", tags=["Franchise"])
-def get_cities(
-    start: str = Query(
-        default="2022-01-01",
-        regex=r'^\d{4}-\d{2}-\d{2}$',
-        description="Start date in YYYY-MM-DD format"
-    ),
-    end: str = Query(
-        default="2022-12-31",
-        regex=r'^\d{4}-\d{2}-\d{2}$',
-        description="End date in YYYY-MM-DD format"
-    )
-):
+def get_cities(start: str = "2022-01-01", end: str = "2022-12-31"):
     """
     Returns revenue grouped by city and state.
     Used to power the geographic breakdown chart.
@@ -387,7 +376,6 @@ def get_cities(
         { "city": "Austin", "state": "TX", "order_count": 420, "revenue": 38430.00 }
     ]
     """
-    validate_date_range(start, end)
     try:
         conn = get_connection()
         results = execute_query(conn, """
