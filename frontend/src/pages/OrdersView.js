@@ -15,7 +15,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Grid, Card, CardContent, Typography, Box, Paper, Chip } from '@mui/material';
+import { Grid, Card, CardContent, Typography, Box, Paper, Chip, Skeleton } from '@mui/material';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { BarChart } from '@mui/x-charts/BarChart';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -116,7 +116,50 @@ export default function OrdersView() {
         )}
 
         {/* ── Loading state ──────────────────────────────────────────────── */}
-        {loading && <div className="loading">Loading orders data…</div>}
+        {loading && (
+          <>
+            {/* Skeleton for stat cards */}
+            <Grid container spacing={3} sx={{ marginBottom: 4 }}>
+              {[1, 2, 3].map((i) => (
+                <Grid item xs={12} sm={6} md={4} key={i}>
+                  <Card elevation={2}>
+                    <CardContent>
+                      <Box display="flex" alignItems="center" justifyContent="space-between">
+                        <Box sx={{ flex: 1 }}>
+                          <Skeleton variant="text" width="70%" height={24} sx={{ mb: 1 }} />
+                          <Skeleton variant="text" width="85%" height={48} />
+                        </Box>
+                        <Skeleton variant="circular" width={48} height={48} />
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+
+            {/* Skeleton for revenue chart */}
+            <Paper elevation={2} sx={{ padding: 3, marginBottom: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box>
+                  <Skeleton variant="text" width={200} height={32} />
+                  <Skeleton variant="text" width={300} height={20} />
+                </Box>
+              </Box>
+              <Skeleton variant="rectangular" height={400} sx={{ mt: 2 }} animation="wave" />
+            </Paper>
+
+            {/* Skeleton for city chart */}
+            <Paper elevation={2} sx={{ padding: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box>
+                  <Skeleton variant="text" width={240} height={32} />
+                  <Skeleton variant="text" width={280} height={20} />
+                </Box>
+              </Box>
+              <Skeleton variant="rectangular" height={500} sx={{ mt: 2 }} animation="wave" />
+            </Paper>
+          </>
+        )}
 
         {/* ── TODO: Build the UI here ────────────────────────────────────── */}
         {!loading && !error && (

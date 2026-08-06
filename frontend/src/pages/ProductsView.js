@@ -23,7 +23,8 @@ import {
   TableRow,
   Box,
   Chip,
-  Tooltip
+  Tooltip,
+  Skeleton
 } from '@mui/material';
 import { BarChart } from '@mui/x-charts/BarChart';
 import Navbar from '../components/Navbar';
@@ -173,9 +174,22 @@ export default function ProductsView() {
         )}
 
         {loading && (
-          <div className="loading" role="status" aria-live="polite">
-            <span>Loading products data…</span>
-          </div>
+          <Paper elevation={2} sx={{ padding: 3, position: 'relative' }}>
+            <Skeleton variant="text" width="30%" height={30} />
+            <Skeleton variant="text" width="50%" height={20} sx={{ mb: 2 }} />
+
+            <Box className="grid-2" sx={{ gap: 3 }}>
+              {/* Chart skeleton */}
+              <Skeleton variant="rectangular" height={500} animation="wave" />
+
+              {/* Table skeleton */}
+              <Box>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+                  <Skeleton key={i} variant="text" height={50} sx={{ mb: 1 }} animation="wave" />
+                ))}
+              </Box>
+            </Box>
+          </Paper>
         )}
 
         {!loading && !error && (

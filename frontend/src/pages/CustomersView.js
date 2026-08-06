@@ -23,7 +23,8 @@ import {
   TableSortLabel,
   Typography,
   Box,
-  Chip
+  Chip,
+  Skeleton
 } from '@mui/material';
 import Navbar from '../components/Navbar';
 import CustomerDetailModal from '../components/CustomerDetailModal';
@@ -171,7 +172,35 @@ export default function CustomersView() {
           </div>
         )}
 
-        {loading && <div className="loading">Loading customers…</div>}
+        {loading && (
+          <TableContainer component={Paper} elevation={2}>
+            <Box sx={{ padding: 2 }}>
+              <Skeleton variant="text" width="30%" height={30} sx={{ mb: 2 }} />
+            </Box>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell><Skeleton variant="text" width="80%" /></TableCell>
+                  <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                  <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                  <TableCell align="right"><Skeleton variant="text" width="80%" /></TableCell>
+                  <TableCell align="right"><Skeleton variant="text" width="80%" /></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton variant="text" animation="wave" /></TableCell>
+                    <TableCell><Skeleton variant="text" animation="wave" /></TableCell>
+                    <TableCell><Skeleton variant="text" animation="wave" /></TableCell>
+                    <TableCell align="right"><Skeleton variant="text" animation="wave" /></TableCell>
+                    <TableCell align="right"><Skeleton variant="text" animation="wave" /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
 
         {!loading && !error && (
           <TableContainer component={Paper} elevation={2}>
