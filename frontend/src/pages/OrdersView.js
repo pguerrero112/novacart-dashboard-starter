@@ -15,7 +15,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Grid, Card, CardContent, Typography, Box, Paper, Chip, TextField, Button } from '@mui/material';
+import { Grid, Card, CardContent, Typography, Box, Paper, Chip, Skeleton } from '@mui/material';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { BarChart } from '@mui/x-charts/BarChart';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -23,23 +23,24 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import PeopleIcon from '@mui/icons-material/People';
 import Navbar from '../components/Navbar';
 import ChartExportMenu from '../components/ChartExportMenu';
-import { getSummary, getOrders, getCities } from '../utils/api';
+import { useData } from '../contexts/DataContext';
 import { formatCompactCurrency, exportDataAsCSV } from '../utils/exportUtils';
 
 export default function OrdersView() {
-  const [startDate, setStartDate] = useState('2022-01-01');
-  const [endDate,   setEndDate]   = useState('2022-12-31');
-  const [summary,   setSummary]   = useState(null);
-  const [orders,    setOrders]    = useState([]);
-  const [cities,    setCities]    = useState([]);
-  const [loading,   setLoading]   = useState(true);
+  const { summary, orders, cities, dateRange, fetchOrdersData } = useData();
+  const [startDate, setStartDate] = useState(dateRange.start);
+  const [endDate,   setEndDate]   = useState(dateRange.end);
+  const [loading,   setLoading]   = useState(!summary || !orders || !cities);
   const [error,     setError]     = useState(null);
-  const [dateErrors, setDateErrors] = useState({ start: '', end: '', range: '' });
 
   const revenueChartRef = useRef(null);
   const cityChartRef = useRef(null);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    if (!summary || !orders || !cities) {
+      loadData();
+    }
+  }, []);
 
   const validateDateFormat = (dateStr) => {
     const regex = /^\d{4}-\d{2}-\d{2}$/;
@@ -53,24 +54,7 @@ export default function OrdersView() {
   };
 
   const validateDates = () => {
-    const errors = { start: '', end: '', range: '' };
-    let isValid = true;
-
-    if (!validateDateFormat(startDate)) {
-      errors.start = 'Invalid date format (YYYY-MM-DD)';
-      isValid = false;
-    }
-    if (!validateDateFormat(endDate)) {
-      errors.end = 'Invalid date format (YYYY-MM-DD)';
-      isValid = false;
-    }
-    if (isValid && !validateDateRange(startDate, endDate)) {
-      errors.range = 'Start date must be before or equal to end date';
-      isValid = false;
-    }
-
-    setDateErrors(errors);
-    return isValid;
+    return validateDateFormat(startDate) && validateDateFormat(endDate) && validateDateRange(startDate, endDate);
   };
 
   async function loadData() {
@@ -79,14 +63,7 @@ export default function OrdersView() {
     setLoading(true);
     setError(null);
     try {
-      const [s, o, c] = await Promise.all([
-        getSummary(),
-        getOrders(startDate, endDate),
-        getCities(startDate, endDate),
-      ]);
-      setSummary(s);
-      setOrders(o);
-      setCities(c);
+      await fetchOrdersData(startDate, endDate);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -118,43 +95,13 @@ export default function OrdersView() {
         </Box>
 
         {/* ── Filter bar ─────────────────────────────────────────────────── */}
-        <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          <TextField
-            label="From"
-            type="date"
-            value={startDate}
-            onChange={e => setStartDate(e.target.value)}
-            error={!!dateErrors.start}
-            helperText={dateErrors.start}
-            InputLabelProps={{ shrink: true }}
-            size="small"
-            sx={{ minWidth: 200 }}
-          />
-          <TextField
-            label="To"
-            type="date"
-            value={endDate}
-            onChange={e => setEndDate(e.target.value)}
-            error={!!dateErrors.end}
-            helperText={dateErrors.end}
-            InputLabelProps={{ shrink: true }}
-            size="small"
-            sx={{ minWidth: 200 }}
-          />
-          <Button
-            variant="contained"
-            onClick={loadData}
-            size="medium"
-            sx={{ height: 40 }}
-          >
-            Apply
-          </Button>
-          {dateErrors.range && (
-            <Typography variant="body2" color="error" sx={{ width: '100%', mt: -1 }}>
-              {dateErrors.range}
-            </Typography>
-          )}
-        </Box>
+        <div className="filter-bar">
+          <label>From</label>
+          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+          <label>To</label>
+          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+          <button className="btn-apply" onClick={loadData}>Apply</button>
+        </div>
 
         {/* ── Error state ────────────────────────────────────────────────── */}
         {error && (
@@ -164,7 +111,50 @@ export default function OrdersView() {
         )}
 
         {/* ── Loading state ──────────────────────────────────────────────── */}
-        {loading && <div className="loading">Loading orders data…</div>}
+        {loading && (
+          <>
+            {/* Skeleton for stat cards */}
+            <Grid container spacing={3} sx={{ marginBottom: 4 }}>
+              {[1, 2, 3].map((i) => (
+                <Grid item xs={12} sm={6} md={4} key={i}>
+                  <Card elevation={2}>
+                    <CardContent>
+                      <Box display="flex" alignItems="center" justifyContent="space-between">
+                        <Box sx={{ flex: 1 }}>
+                          <Skeleton variant="text" width="70%" height={24} sx={{ mb: 1 }} />
+                          <Skeleton variant="text" width="85%" height={48} />
+                        </Box>
+                        <Skeleton variant="circular" width={48} height={48} />
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+
+            {/* Skeleton for revenue chart */}
+            <Paper elevation={2} sx={{ padding: 3, marginBottom: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box>
+                  <Skeleton variant="text" width={200} height={32} />
+                  <Skeleton variant="text" width={300} height={20} />
+                </Box>
+              </Box>
+              <Skeleton variant="rectangular" height={400} sx={{ mt: 2 }} animation="wave" />
+            </Paper>
+
+            {/* Skeleton for city chart */}
+            <Paper elevation={2} sx={{ padding: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box>
+                  <Skeleton variant="text" width={240} height={32} />
+                  <Skeleton variant="text" width={280} height={20} />
+                </Box>
+              </Box>
+              <Skeleton variant="rectangular" height={500} sx={{ mt: 2 }} animation="wave" />
+            </Paper>
+          </>
+        )}
 
         {/* ── TODO: Build the UI here ────────────────────────────────────── */}
         {!loading && !error && (

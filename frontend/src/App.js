@@ -5,6 +5,7 @@ import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { getMuiTheme } from './theme';
 import { AuthProvider } from './utils/AuthContext';
+import { DataProvider } from './contexts/DataContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginView from './pages/LoginView';
 import OrdersView   from './pages/OrdersView';
@@ -65,7 +66,9 @@ export default function App() {
   return (
     <CustomThemeProvider>
       <AuthProvider>
-        <AppContent />
+        <DataProvider>
+          <AppContent />
+        </DataProvider>
       </AuthProvider>
     </CustomThemeProvider>
   );
