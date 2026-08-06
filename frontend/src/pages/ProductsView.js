@@ -10,7 +10,8 @@
  * Your job: implement the UI.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Paper,
   Typography,
@@ -20,14 +21,16 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
-  Button,
-  Box
+  Box,
+  Chip,
+  Tooltip
 } from '@mui/material';
 import { BarChart } from '@mui/x-charts/BarChart';
 import Navbar from '../components/Navbar';
-import { getProducts } from '../utils/api';
-import { validateDateFormat, validateDateRange } from '../utils/dateValidation';
+import ProductDetailModal from '../components/ProductDetailModal';
+import ChartExportMenu from '../components/ChartExportMenu';
+import { getProducts, getProductById } from '../utils/api';
+import { exportDataAsCSV, formatCompactCurrency } from '../utils/exportUtils';
 
 // Format currency helper
 function formatCurrency(value) {
@@ -43,30 +46,34 @@ export default function ProductsView() {
   const [products,  setProducts]  = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState(null);
-  const [dateErrors, setDateErrors] = useState({ start: '', end: '', range: '' });
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const productsChartRef = useRef(null);
 
   useEffect(() => { loadData(); }, []);
 
-  const validateDates = () => {
-    const errors = { start: '', end: '', range: '' };
-    let isValid = true;
+  useEffect(() => {
+    const productId = searchParams.get('view');
+    if (productId && products.length > 0) {
+      // Compare as strings to handle both string and number IDs
+      const product = products.find(p => String(p.product_id) === String(productId));
+      if (product) {
+        setSelectedProduct(product);
+      } else {
+        // Product not in top 10, fetch individually
+        fetchIndividualProduct(productId);
+      }
+    }
+  }, [searchParams, products]);
 
-    if (!validateDateFormat(startDate)) {
-      errors.start = 'Invalid date format (YYYY-MM-DD)';
-      isValid = false;
+  async function fetchIndividualProduct(productId) {
+    try {
+      const product = await getProductById(productId, startDate, endDate);
+      setSelectedProduct(product);
+    } catch (error) {
+      console.error('Error fetching product:', error);
     }
-    if (!validateDateFormat(endDate)) {
-      errors.end = 'Invalid date format (YYYY-MM-DD)';
-      isValid = false;
-    }
-    if (isValid && !validateDateRange(startDate, endDate)) {
-      errors.range = 'Start date must be before or equal to end date';
-      isValid = false;
-    }
-
-    setDateErrors(errors);
-    return isValid;
-  };
+  }
 
   async function loadData() {
     if (!validateDates()) return;
@@ -83,119 +90,209 @@ export default function ProductsView() {
     }
   }
 
+  const handleRowClick = (product) => {
+    setSelectedProduct(product);
+    setSearchParams({ view: product.product_id });
+  };
+
+  const handleCloseModal = () => {
+    setSelectedProduct(null);
+    setSearchParams({});
+  };
+
+  const handleExportData = () => {
+    exportDataAsCSV(products, `products-${startDate}-to-${endDate}`);
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
       <Navbar />
       <div className="page">
 
-        <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          <TextField
-            label="From"
+        {/* Page Header */}
+        <Box sx={{ mb: 3, textAlign: 'left' }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, mb: 0.5 }}>
+            Product Performance
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Analyze product sales and revenue trends
+          </Typography>
+        </Box>
+
+        <div className="filter-bar" style={{ marginBottom: 20 }} role="search" aria-label="Filter products by date range">
+          <label htmlFor="start-date">From</label>
+          <input
+            id="start-date"
             type="date"
             value={startDate}
             onChange={e => setStartDate(e.target.value)}
-            error={!!dateErrors.start}
-            helperText={dateErrors.start}
-            InputLabelProps={{ shrink: true }}
-            size="small"
-            sx={{ minWidth: 200 }}
+            aria-label="Start date"
           />
-          <TextField
-            label="To"
+          <label htmlFor="end-date">To</label>
+          <input
+            id="end-date"
             type="date"
             value={endDate}
             onChange={e => setEndDate(e.target.value)}
-            error={!!dateErrors.end}
-            helperText={dateErrors.end}
-            InputLabelProps={{ shrink: true }}
-            size="small"
-            sx={{ minWidth: 200 }}
+            aria-label="End date"
           />
-          <Button
-            variant="contained"
-            onClick={loadData}
-            size="medium"
-            sx={{ height: 40 }}
-          >
-            Apply
-          </Button>
-          {dateErrors.range && (
-            <Typography variant="body2" color="error" sx={{ width: '100%', mt: -1 }}>
-              {dateErrors.range}
-            </Typography>
-          )}
-        </Box>
+          <button className="btn-apply" onClick={loadData} aria-label="Apply date range filter">Apply</button>
+          <Chip
+            label="Export CSV"
+            onClick={handleExportData}
+            clickable
+            disabled={products.length === 0}
+            sx={{ marginLeft: 'auto' }}
+            aria-label="Export product data as CSV"
+          />
+        </div>
 
         {error && (
-          <div style={{ color: '#C62828', padding: 16, background: '#FFEBEE', borderRadius: 8, marginBottom: 16 }}>
+          <div
+            role="alert"
+            aria-live="assertive"
+            style={{ color: '#C62828', padding: 16, background: '#FFEBEE', borderRadius: 8, marginBottom: 16 }}
+          >
             Error: {error}
           </div>
         )}
 
-        {loading && <div className="loading">Loading products data…</div>}
+        {loading && (
+          <div className="loading" role="status" aria-live="polite">
+            <span>Loading products data…</span>
+          </div>
+        )}
 
         {!loading && !error && (
-          <div className="grid-2">
-
-            {/* Top 10 Products Chart */}
-            <Paper elevation={2} sx={{ padding: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Top 10 Products by Revenue
-              </Typography>
-              {products.length > 0 ? (
-                <BarChart
-                  yAxis={[{
-                    scaleType: 'band',
-                    data: products.slice(0, 10).map(p =>
-                      p.name.length > 25 ? p.name.substring(0, 25) + '...' : p.name
-                    ),
-                  }]}
-                  series={[
-                    {
-                      data: products.slice(0, 10).map(p => p.revenue),
-                      label: 'Revenue ($)',
-                      color: '#4caf50',
-                    },
-                  ]}
-                  layout="horizontal"
-                  height={400}
-                  margin={{ left: 200, right: 20, top: 20, bottom: 40 }}
-                />
-              ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-                  No product data available
+          <Paper elevation={2} sx={{ padding: 3, position: 'relative' }}>
+            {/* Combined Header */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+              <Box>
+                <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+                  Top 10 Products by Revenue
                 </Typography>
-              )}
-            </Paper>
+                <Typography variant="caption" color="text.secondary">
+                  Best performing products in the selected period
+                </Typography>
+              </Box>
+            </Box>
 
-            {/* Products Table */}
-            <TableContainer component={Paper} elevation={2}>
-              <Typography variant="h6" sx={{ padding: 2 }}>
-                Product Details
-              </Typography>
-              <Table>
+            <Box className="grid-2" sx={{ gap: 3 }}>
+              {/* Chart Section */}
+              <Box
+                ref={productsChartRef}
+                sx={{ position: 'relative' }}
+                role="img"
+                aria-label="Bar chart showing top 10 products by revenue"
+              >
+                {products.length > 0 && (
+                  <ChartExportMenu
+                    chartRef={productsChartRef}
+                    data={{
+                      x: products.slice(0, 10).map(p => p.name),
+                      y: products.slice(0, 10).map(p => p.revenue)
+                    }}
+                    xLabel="Product"
+                    yLabel="Revenue ($)"
+                    filename="top-products"
+                  />
+                )}
+                {products.length > 0 ? (
+                  <>
+                    <BarChart
+                      yAxis={[{
+                        scaleType: 'band',
+                        data: products.slice(0, 10).map(p => {
+                          const maxLength = 18; // Length of "Noise Cancelling"
+                          return p.name.length > maxLength ? p.name.substring(0, maxLength) + '...' : p.name;
+                        }),
+                        tickLabelStyle: { fontSize: 12 }
+                      }]}
+                      xAxis={[{
+                        valueFormatter: (value) => formatCompactCurrency(value),
+                        tickLabelStyle: { fontSize: 11 }
+                      }]}
+                      series={[
+                        {
+                          data: products.slice(0, 10).map(p => p.revenue),
+                          label: 'Revenue',
+                          color: '#4caf50',
+                        },
+                      ]}
+                      layout="horizontal"
+                      height={500}
+                      margin={{ left: 10, right: 10, top: 10, bottom: 40 }}
+                      grid={{ vertical: true }}
+                    />
+                    <div className="sr-only">
+                      Top 10 products by revenue: {products.slice(0, 10).map(p =>
+                        `${p.name}: ${formatCurrency(p.revenue)}`
+                      ).join(', ')}
+                    </div>
+                  </>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                    No product data available
+                  </Typography>
+                )}
+              </Box>
+
+              {/* Table Section */}
+              <TableContainer sx={{ maxHeight: 600 }} role="region" aria-label="Product performance data table">
+              <Table stickyHeader aria-label="Product performance with revenue and units sold">
                 <TableHead>
                   <TableRow>
-                    <TableCell><strong>Product Name</strong></TableCell>
-                    <TableCell><strong>Category</strong></TableCell>
-                    <TableCell align="right"><strong>Units Sold</strong></TableCell>
-                    <TableCell align="right"><strong>Revenue</strong></TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: 'background.paper' }} scope="col">Product Name</TableCell>
+                    <TableCell sx={{ fontWeight: 600, backgroundColor: 'background.paper' }} scope="col">Category</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600, backgroundColor: 'background.paper' }} scope="col">Units Sold</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600, backgroundColor: 'background.paper' }} scope="col">Revenue</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {products.length > 0 ? (
-                    products.map((product) => (
-                      <TableRow
-                        key={product.product_id}
-                        hover
-                        sx={{ '&:nth-of-type(odd)': { backgroundColor: 'action.hover' } }}
-                      >
-                        <TableCell>{product.name}</TableCell>
-                        <TableCell>{product.category}</TableCell>
-                        <TableCell align="right">{product.units_sold.toLocaleString('en-US')}</TableCell>
-                        <TableCell align="right">{formatCurrency(product.revenue)}</TableCell>
-                      </TableRow>
-                    ))
+                    products.map((product) => {
+                      const displayName = product.name.length > 30 ? product.name.substring(0, 30) + '...' : product.name;
+                      return (
+                        <TableRow
+                          key={product.product_id}
+                          hover
+                          onClick={() => handleRowClick(product)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleRowClick(product);
+                            }
+                          }}
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`View details for ${product.name}`}
+                          sx={{
+                            '&:nth-of-type(odd)': { backgroundColor: 'action.hover' },
+                            cursor: 'pointer',
+                            '&:hover': {
+                              backgroundColor: 'rgba(0, 137, 123, 0.08)'
+                            },
+                            '&:focus': {
+                              outline: '2px solid #00897B',
+                              outlineOffset: '-2px'
+                            }
+                          }}
+                        >
+                          <TableCell>
+                            {product.name.length > 30 ? (
+                              <Tooltip title={product.name} arrow>
+                                <span>{displayName}</span>
+                              </Tooltip>
+                            ) : (
+                              product.name
+                            )}
+                          </TableCell>
+                          <TableCell>{product.category}</TableCell>
+                          <TableCell align="right">{product.units_sold.toLocaleString('en-US')}</TableCell>
+                          <TableCell align="right">{formatCurrency(product.revenue)}</TableCell>
+                        </TableRow>
+                      );
+                    })
                   ) : (
                     <TableRow>
                       <TableCell colSpan={4} align="center">
@@ -208,9 +305,16 @@ export default function ProductsView() {
                 </TableBody>
               </Table>
             </TableContainer>
-
-          </div>
+            </Box>
+          </Paper>
         )}
+
+        {/* Product Detail Modal */}
+        <ProductDetailModal
+          product={selectedProduct}
+          open={Boolean(selectedProduct)}
+          onClose={handleCloseModal}
+        />
       </div>
     </div>
   );
