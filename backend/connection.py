@@ -15,6 +15,11 @@ import sqlite3
 from pathlib import Path
 from dotenv import load_dotenv
 
+try:
+    import snowflake.connector
+except ImportError:
+    snowflake = None
+
 load_dotenv()
 
 DATA_BACKEND = os.getenv("DATA_BACKEND", "sqlite")
@@ -45,8 +50,10 @@ def get_snowflake_connection():
     When running inside SPCS: uses the OAuth token mounted at /snowflake/session/token.
     When running locally: uses keypair authentication from environment variables.
     """
-    import snowflake.connector
     from cryptography.hazmat.primitives import serialization
+
+    if snowflake is None:
+        raise ImportError("snowflake-connector-python is not installed. Install it with: pip install snowflake-connector-python")
 
     token_path = "/snowflake/session/token"
 
