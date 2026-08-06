@@ -183,9 +183,9 @@ def get_summary():
 
         row = results[0]
         return {
-            "total_revenue":     round(row["total_revenue"] or 0, 2),
-            "total_orders":      row["total_orders"],
-            "unique_customers":  row["unique_customers"],
+            "total_revenue":     round(float(row["total_revenue"] or 0), 2),
+            "total_orders":      int(row["total_orders"]),
+            "unique_customers":  int(row["unique_customers"]),
             "date_range": {"start": row["start_date"], "end": row["end_date"]},
         }
     except Exception as e:
@@ -224,7 +224,7 @@ def get_orders(
         conn = get_connection()
         results = execute_query(conn, """
             SELECT
-                printf('%04d-%02d', d.year, d.month) AS month,
+                TO_CHAR(TO_DATE(d.year || '-' || LPAD(d.month, 2, '0') || '-01', 'YYYY-MM-DD'), 'YYYY-MM') AS month,
                 d.month_name,
                 COUNT(DISTINCT o.order_id) AS order_count,
                 SUM(o.amount) AS revenue
@@ -241,8 +241,8 @@ def get_orders(
             {
                 "month": row["month"],
                 "month_name": row["month_name"],
-                "order_count": row["order_count"],
-                "revenue": round(row["revenue"], 2)
+                "order_count": int(row["order_count"]),
+                "revenue": round(float(row["revenue"]), 2)
             }
             for row in results
         ]
@@ -297,8 +297,8 @@ def get_products(
                 "product_id": row["product_id"],
                 "name": row["name"],
                 "category": row["category"],
-                "units_sold": row["units_sold"],
-                "revenue": round(row["revenue"], 2)
+                "units_sold": int(row["units_sold"]),
+                "revenue": round(float(row["revenue"]), 2)
             }
             for row in results
         ]
@@ -356,8 +356,8 @@ def get_customers(
                 "name": row["name"],
                 "city": row["city"],
                 "state": row["state"],
-                "total_orders": row["total_orders"],
-                "total_spent": round(row["total_spent"], 2)
+                "total_orders": int(row["total_orders"]),
+                "total_spent": round(float(row["total_spent"]), 2)
             }
             for row in results
         ]
@@ -398,8 +398,8 @@ def get_cities(start: str = "2022-01-01", end: str = "2022-12-31"):
             {
                 "city": row["city"],
                 "state": row["state"],
-                "order_count": row["order_count"],
-                "revenue": round(row["revenue"], 2)
+                "order_count": int(row["order_count"]),
+                "revenue": round(float(row["revenue"]), 2)
             }
             for row in results
         ]

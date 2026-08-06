@@ -75,6 +75,21 @@ export default function ProductsView() {
     }
   }
 
+  const validateDateFormat = (dateStr) => {
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!regex.test(dateStr)) return false;
+    const date = new Date(dateStr);
+    return date instanceof Date && !isNaN(date);
+  };
+
+  const validateDateRange = (start, end) => {
+    return new Date(start) <= new Date(end);
+  };
+
+  const validateDates = () => {
+    return validateDateFormat(startDate) && validateDateFormat(endDate) && validateDateRange(startDate, endDate);
+  };
+
   async function loadData() {
     if (!validateDates()) return;
 

@@ -15,7 +15,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Grid, Card, CardContent, Typography, Box, Paper, Chip } from '@mui/material';
+import { Grid, Card, CardContent, Typography, Box, Paper, Chip, TextField, Button } from '@mui/material';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { BarChart } from '@mui/x-charts/BarChart';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -34,11 +34,23 @@ export default function OrdersView() {
   const [cities,    setCities]    = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState(null);
+  const [dateErrors, setDateErrors] = useState({ start: '', end: '', range: '' });
 
   const revenueChartRef = useRef(null);
   const cityChartRef = useRef(null);
 
   useEffect(() => { loadData(); }, []);
+
+  const validateDateFormat = (dateStr) => {
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!regex.test(dateStr)) return false;
+    const date = new Date(dateStr);
+    return date instanceof Date && !isNaN(date);
+  };
+
+  const validateDateRange = (start, end) => {
+    return new Date(start) <= new Date(end);
+  };
 
   const validateDates = () => {
     const errors = { start: '', end: '', range: '' };
