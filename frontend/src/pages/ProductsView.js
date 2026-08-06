@@ -30,7 +30,8 @@ import { BarChart } from '@mui/x-charts/BarChart';
 import Navbar from '../components/Navbar';
 import ProductDetailModal from '../components/ProductDetailModal';
 import ChartExportMenu from '../components/ChartExportMenu';
-import { getProducts, getProductById } from '../utils/api';
+import { useData } from '../contexts/DataContext';
+import { getProductById } from '../utils/api';
 import { exportDataAsCSV, formatCompactCurrency } from '../utils/exportUtils';
 
 // Format currency helper
@@ -42,20 +43,24 @@ function formatCurrency(value) {
 }
 
 export default function ProductsView() {
-  const [startDate, setStartDate] = useState('2022-01-01');
-  const [endDate,   setEndDate]   = useState('2022-12-31');
-  const [products,  setProducts]  = useState([]);
-  const [loading,   setLoading]   = useState(true);
+  const { products, dateRange, fetchProductsData } = useData();
+  const [startDate, setStartDate] = useState(dateRange.start);
+  const [endDate,   setEndDate]   = useState(dateRange.end);
+  const [loading,   setLoading]   = useState(!products);
   const [error,     setError]     = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const productsChartRef = useRef(null);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    if (!products) {
+      loadData();
+    }
+  }, []);
 
   useEffect(() => {
     const productId = searchParams.get('view');
-    if (productId && products.length > 0) {
+    if (productId && products && products.length > 0) {
       // Compare as strings to handle both string and number IDs
       const product = products.find(p => String(p.product_id) === String(productId));
       if (product) {
@@ -97,8 +102,7 @@ export default function ProductsView() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getProducts(startDate, endDate);
-      setProducts(data);
+      await fetchProductsData(startDate, endDate);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -117,7 +121,7 @@ export default function ProductsView() {
   };
 
   const handleExportData = () => {
-    exportDataAsCSV(products, `products-${startDate}-to-${endDate}`);
+    exportDataAsCSV(products || [], `products-${startDate}-to-${endDate}`);
   };
 
   return (
@@ -157,7 +161,7 @@ export default function ProductsView() {
             label="Export CSV"
             onClick={handleExportData}
             clickable
-            disabled={products.length === 0}
+            disabled={!products || products.length === 0}
             sx={{ marginLeft: 'auto' }}
             aria-label="Export product data as CSV"
           />
@@ -214,7 +218,7 @@ export default function ProductsView() {
                 role="img"
                 aria-label="Bar chart showing top 10 products by revenue"
               >
-                {products.length > 0 && (
+                {products && products.length > 0 && (
                   <ChartExportMenu
                     chartRef={productsChartRef}
                     data={{
@@ -226,7 +230,7 @@ export default function ProductsView() {
                     filename="top-products"
                   />
                 )}
-                {products.length > 0 ? (
+                {products && products.length > 0 ? (
                   <>
                     <BarChart
                       yAxis={[{
@@ -279,7 +283,7 @@ export default function ProductsView() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {products.length > 0 ? (
+                  {products && products.length > 0 ? (
                     products.map((product) => {
                       const displayName = product.name.length > 30 ? product.name.substring(0, 30) + '...' : product.name;
                       return (

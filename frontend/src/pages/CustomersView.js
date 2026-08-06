@@ -28,7 +28,8 @@ import {
 } from '@mui/material';
 import Navbar from '../components/Navbar';
 import CustomerDetailModal from '../components/CustomerDetailModal';
-import { getCustomers, getCustomerById } from '../utils/api';
+import { useData } from '../contexts/DataContext';
+import { getCustomerById } from '../utils/api';
 import { exportDataAsCSV } from '../utils/exportUtils';
 
 function formatCurrency(value) {
@@ -37,22 +38,26 @@ function formatCurrency(value) {
 }
 
 export default function CustomersView() {
-  const [startDate,  setStartDate]  = useState('2022-01-01');
-  const [endDate,    setEndDate]    = useState('2022-12-31');
-  const [customers,  setCustomers]  = useState([]);
+  const { customers, dateRange, fetchCustomersData } = useData();
+  const [startDate,  setStartDate]  = useState(dateRange.start);
+  const [endDate,    setEndDate]    = useState(dateRange.end);
   const [sortBy,     setSortBy]     = useState('total_spent');
   const [sortDir,    setSortDir]    = useState('desc');
-  const [loading,    setLoading]    = useState(true);
+  const [loading,    setLoading]    = useState(!customers);
   const [error,      setError]      = useState(null);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    if (!customers) {
+      loadData();
+    }
+  }, []);
 
   // Handle opening modal from URL parameter
   useEffect(() => {
     const customerId = searchParams.get('view');
-    if (customerId && customers.length > 0) {
+    if (customerId && customers && customers.length > 0) {
       // Compare as strings to handle both string and number IDs
       const customer = customers.find(c => String(c.customer_id) === String(customerId));
       if (customer) {
@@ -94,8 +99,7 @@ export default function CustomersView() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getCustomers(startDate, endDate);
-      setCustomers(data);
+      await fetchCustomersData(startDate, endDate);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -114,13 +118,13 @@ export default function CustomersView() {
   }
 
   // Apply sort to customers array
-  const sorted = [...customers].sort((a, b) => {
+  const sorted = customers ? [...customers].sort((a, b) => {
     const va = a[sortBy], vb = b[sortBy];
     if (typeof va === 'number') return sortDir === 'asc' ? va - vb : vb - va;
     return sortDir === 'asc'
       ? String(va).localeCompare(String(vb))
       : String(vb).localeCompare(String(va));
-  });
+  }) : [];
 
   const handleRowClick = (customer) => {
     setSelectedCustomer(customer);
@@ -133,7 +137,7 @@ export default function CustomersView() {
   };
 
   const handleExportData = () => {
-    exportDataAsCSV(customers, `customers-${startDate}-to-${endDate}`);
+    exportDataAsCSV(customers || [], `customers-${startDate}-to-${endDate}`);
   };
 
   return (
@@ -161,7 +165,7 @@ export default function CustomersView() {
             label="Export CSV"
             onClick={handleExportData}
             clickable
-            disabled={customers.length === 0}
+            disabled={!customers || customers.length === 0}
             sx={{ marginLeft: 'auto' }}
           />
         </div>

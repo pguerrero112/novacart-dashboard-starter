@@ -1,26 +1,31 @@
 import React, { useEffect, useState } from 'react';
-import { getHealth } from '../utils/api';
+import { useData } from '../contexts/DataContext';
 
 export default function ServiceStatus() {
+  const { healthStatus, fetchHealthStatus } = useData();
   const [status, setStatus] = useState('checking');
   const [detail, setDetail] = useState('');
 
   async function check() {
-    try {
-      const data = await getHealth();
-      setStatus(data.status === 'healthy' ? 'healthy' : 'degraded');
-      setDetail(data.database?.status === 'connected' ? 'Connected' : 'DB issue');
-    } catch {
-      setStatus('error');
-      setDetail('Backend unreachable');
-    }
+    const health = await fetchHealthStatus();
+    setStatus(health.status);
+    setDetail(health.detail);
   }
 
   useEffect(() => {
-    check();
+    // If we already have cached health status, use it immediately
+    if (healthStatus) {
+      setStatus(healthStatus.status);
+      setDetail(healthStatus.detail);
+    } else {
+      // Otherwise fetch it
+      check();
+    }
+
+    // Check every 30 seconds (will use cache if less than 30s old)
     const interval = setInterval(check, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [healthStatus]);
 
   const colors = { healthy: '#00897B', degraded: '#F9A825', error: '#C62828', checking: '#90A4AE' };
   const labels = { healthy: 'Service healthy', degraded: 'Degraded', error: 'Offline', checking: 'Checking…' };

@@ -23,22 +23,24 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import PeopleIcon from '@mui/icons-material/People';
 import Navbar from '../components/Navbar';
 import ChartExportMenu from '../components/ChartExportMenu';
-import { getSummary, getOrders, getCities } from '../utils/api';
+import { useData } from '../contexts/DataContext';
 import { formatCompactCurrency, exportDataAsCSV } from '../utils/exportUtils';
 
 export default function OrdersView() {
-  const [startDate, setStartDate] = useState('2022-01-01');
-  const [endDate,   setEndDate]   = useState('2022-12-31');
-  const [summary,   setSummary]   = useState(null);
-  const [orders,    setOrders]    = useState([]);
-  const [cities,    setCities]    = useState([]);
-  const [loading,   setLoading]   = useState(true);
+  const { summary, orders, cities, dateRange, fetchOrdersData } = useData();
+  const [startDate, setStartDate] = useState(dateRange.start);
+  const [endDate,   setEndDate]   = useState(dateRange.end);
+  const [loading,   setLoading]   = useState(!summary || !orders || !cities);
   const [error,     setError]     = useState(null);
 
   const revenueChartRef = useRef(null);
   const cityChartRef = useRef(null);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    if (!summary || !orders || !cities) {
+      loadData();
+    }
+  }, []);
 
   const validateDateFormat = (dateStr) => {
     const regex = /^\d{4}-\d{2}-\d{2}$/;
@@ -61,14 +63,7 @@ export default function OrdersView() {
     setLoading(true);
     setError(null);
     try {
-      const [s, o, c] = await Promise.all([
-        getSummary(),
-        getOrders(startDate, endDate),
-        getCities(startDate, endDate),
-      ]);
-      setSummary(s);
-      setOrders(o);
-      setCities(c);
+      await fetchOrdersData(startDate, endDate);
     } catch (err) {
       setError(err.message);
     } finally {
