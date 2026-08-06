@@ -239,7 +239,8 @@ export default function ProductsView() {
                           const maxLength = 18; // Length of "Noise Cancelling"
                           return p.name.length > maxLength ? p.name.substring(0, maxLength) + '...' : p.name;
                         }),
-                        tickLabelStyle: { fontSize: 12 }
+                        tickLabelStyle: { fontSize: 12 },
+                        width: 80
                       }]}
                       xAxis={[{
                         valueFormatter: (value) => formatCompactCurrency(value),

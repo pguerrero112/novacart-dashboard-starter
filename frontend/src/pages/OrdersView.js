@@ -256,8 +256,12 @@ export default function OrdersView() {
                     tickLabelStyle: { fontSize: 12 }
                   }]}
                   yAxis={[{
-                    valueFormatter: (value) => formatCompactCurrency(value),
-                    tickLabelStyle: { fontSize: 11 }
+                    valueFormatter: (value) => {
+                      const formatted = formatCompactCurrency(value);
+                      return formatted.replace(/\.0([KMB]|$)/, '$1');
+                    },
+                    tickLabelStyle: { fontSize: 11 },
+                    width: 50
                   }]}
                   series={[
                     {
@@ -270,7 +274,7 @@ export default function OrdersView() {
                     },
                   ]}
                   height={400}
-                  margin={{ left: 70, right: 20, top: 20, bottom: 40 }}
+                  margin={{ left: 10, right: 20, top: 20, bottom: 40 }}
                   grid={{ horizontal: true }}
                 />
               ) : (
@@ -317,10 +321,14 @@ export default function OrdersView() {
                       const cityState = `${c.city}, ${c.state}`;
                       return cityState.length > 18 ? cityState.substring(0, 18) + '...' : cityState;
                     }),
-                    tickLabelStyle: { fontSize: 12 }
+                    tickLabelStyle: { fontSize: 12 },
+                    width: 80
                   }]}
                   xAxis={[{
-                    valueFormatter: (value) => formatCompactCurrency(value),
+                    valueFormatter: (value) => {
+                      const formatted = formatCompactCurrency(value);
+                      return formatted.replace(/\.0([KMB]|$)/, '$1');
+                    },
                     tickLabelStyle: { fontSize: 11 }
                   }]}
                   series={[

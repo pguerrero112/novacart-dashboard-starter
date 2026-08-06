@@ -18,6 +18,7 @@ import {
   InputAdornment,
   IconButton
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import PersonIcon from '@mui/icons-material/Person';
 import LockIcon from '@mui/icons-material/Lock';
 import Visibility from '@mui/icons-material/Visibility';
@@ -26,6 +27,7 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import { useAuth } from '../utils/AuthContext';
 
 export default function LoginView() {
+  const theme = useTheme();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -86,8 +88,15 @@ export default function LoginView() {
         <CardContent sx={{ p: 4 }}>
           {/* Logo and Title */}
           <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <ShoppingCartIcon sx={{ fontSize: 48, color: '#0D2B4E', mb: 1 }} />
-            <Typography variant="h4" component="h1" sx={{ fontWeight: 700, color: '#333' }}>
+            <ShoppingCartIcon sx={{ fontSize: 48, color: theme.palette.mode === 'dark' ? '#FFFFFF' : '#0D2B4E', mb: 1 }} />
+            <Typography 
+              variant="h4" 
+              component="h1" 
+              sx={{ 
+                fontWeight: 700, 
+                color: theme.palette.mode === 'dark' ? '#FFFFFF' : '#333'
+              }}
+            >
               NovaCart
             </Typography>
             <Typography variant="caption" sx={{ color: '#4DB6AC', fontSize: '0.9rem' }}>
@@ -95,7 +104,14 @@ export default function LoginView() {
             </Typography>
           </Box>
 
-          <Typography variant="h6" sx={{ mb: 3, textAlign: 'center', color: '#555' }}>
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              mb: 3, 
+              textAlign: 'center', 
+              color: theme.palette.mode === 'dark' ? '#FFFFFF' : '#555'
+            }}
+          >
             Sign in to your dashboard
           </Typography>
 
