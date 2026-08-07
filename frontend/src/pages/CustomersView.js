@@ -1,41 +1,35 @@
-/**
- * CustomersView.js — Customer List page
- *
- * This page shows:
- *   - A sortable table of top 20 customers by revenue
- *   - Columns: Name | City | State | Orders | Total Spent
- *   - A date range filter
- *
- * The data fetching is already wired up.
- * Your job: implement the UI and the sorting logic.
- */
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
-import { getCustomers } from '../utils/api';
+import { useCurrency } from '../utils/CurrencyContext';
+import ErrorBanner from '../components/ErrorBanner';
+import EmptyState from '../components/EmptyState';
+import InsightsModal from '../components/InsightsModal';
+import DateRangePicker from '../components/DateRangePicker';
+import { getCustomers, getCustomerInsights } from '../utils/api';
+import { useDateRange } from '../utils/DateRangeContext';
+import { exportCsv } from '../utils/exportCsv';
 
-function formatCurrency(value) {
-  if (!value) return '$0';
-  return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+const TD = { padding: '9px 12px', borderBottom: '1px solid var(--border)', color: 'var(--text-primary)' };
 
 export default function CustomersView() {
-  const [startDate,  setStartDate]  = useState('2022-01-01');
-  const [endDate,    setEndDate]    = useState('2022-12-31');
-  const [customers,  setCustomers]  = useState([]);
-  const [sortBy,     setSortBy]     = useState('total_spent');
-  const [sortDir,    setSortDir]    = useState('desc');
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState(null);
+  const { startDate, setStartDate, endDate, setEndDate } = useDateRange();
+  const { fmt, t } = useCurrency();
+  const [customers,       setCustomers]       = useState([]);
+  const [sortBy,          setSortBy]          = useState('total_spent');
+  const [sortDir,         setSortDir]         = useState('desc');
+  const [search,          setSearch]          = useState('');
+  const [loading,         setLoading]         = useState(true);
+  const [error,           setError]           = useState(null);
+  const [insightsData,    setInsightsData]    = useState(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
-  async function loadData() {
+  async function loadData(start = startDate, end = endDate) {
     setLoading(true);
     setError(null);
     try {
-      const data = await getCustomers(startDate, endDate);
-      setCustomers(data);
+      setCustomers(await getCustomers(start, end));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -43,7 +37,17 @@ export default function CustomersView() {
     }
   }
 
-  // Sort handler — toggles direction if same column, resets to desc if new column
+  async function handleViewInsights(customerId, start = startDate, end = endDate) {
+    setInsightsLoading(true);
+    try {
+      setInsightsData(await getCustomerInsights(customerId, start, end));
+    } catch (err) {
+      alert(`Failed to load insights: ${err.message}`);
+    } finally {
+      setInsightsLoading(false);
+    }
+  }
+
   function handleSort(column) {
     if (sortBy === column) {
       setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -53,17 +57,30 @@ export default function CustomersView() {
     }
   }
 
-  // Apply sort to customers array
-  const sorted = [...customers].sort((a, b) => {
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? customers.filter(c =>
+        c.name?.toLowerCase().includes(q) ||
+        c.city?.toLowerCase().includes(q) ||
+        c.state?.toLowerCase().includes(q)
+      )
+    : customers;
+
+  const sorted = [...filtered].sort((a, b) => {
     const va = a[sortBy], vb = b[sortBy];
     if (typeof va === 'number') return sortDir === 'asc' ? va - vb : vb - va;
-    return sortDir === 'asc'
-      ? String(va).localeCompare(String(vb))
-      : String(vb).localeCompare(String(va));
+    return sortDir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
   });
 
-  // Sort indicator helper
-  const sortIcon = (col) => sortBy === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+  const sortIcon = col => sortBy === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+
+  const COLUMNS = [
+    { label: t.name,       col: 'name',         align: 'left',  width: '30%'              },
+    { label: t.city,       col: 'city',         align: 'left',  width: '20%', hide: true  },
+    { label: t.state,      col: 'state',        align: 'left',  width: '10%', hide: true  },
+    { label: t.orderCount, col: 'total_orders', align: 'right', width: '15%'              },
+    { label: t.totalSpent, col: 'total_spent',  align: 'right', width: '25%'              },
+  ];
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
@@ -71,56 +88,94 @@ export default function CustomersView() {
       <div className="page">
 
         <div className="filter-bar">
-          <label>From</label>
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-          <label>To</label>
-          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-          <button className="btn-apply" onClick={loadData}>Apply</button>
-          <span style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--text-muted)' }}>
-            {customers.length} customers
+          <DateRangePicker onApply={loadData} />
+          <input
+            type="search"
+            placeholder={`${t.name}, ${t.city}, ${t.state}…`}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+              borderRadius: 6, color: 'var(--text-primary)', padding: '5px 10px',
+              fontSize: 13, fontFamily: 'inherit', outline: 'none', width: 200,
+            }}
+          />
+          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{sorted.length}{q ? ` / ${customers.length}` : ''} {t.customers}</span>
+            <button className="btn-download" onClick={() => exportCsv(sorted, `customers_${startDate}_${endDate}`)} disabled={customers.length === 0}>
+              {t.downloadCustomers}
+            </button>
           </span>
         </div>
 
-        {error && (
-          <div style={{ color: '#C62828', padding: 16, background: '#FFEBEE', borderRadius: 8, marginBottom: 16 }}>
-            Error: {error}
-          </div>
-        )}
+        <ErrorBanner message={error} />
+        {loading && <div className="loading">{t.loadingCustomers}</div>}
+        {!loading && !error && customers.length === 0 && <EmptyState />}
 
-        {loading && <div className="loading">Loading customers…</div>}
-
-        {!loading && !error && (
+        {!loading && !error && customers.length > 0 && (
           <div className="card">
-            <div className="section-title" style={{ marginBottom: 16 }}>
-              Top Customers by Revenue
+            <div className="section-title" style={{ marginBottom: 16 }}>{t.topCustomers}</div>
+
+            <div className="table-wrap">
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+              <thead>
+                <tr>
+                  {COLUMNS.map(({ label, col, align, hide, width }) => (
+                    <th key={col} onClick={() => handleSort(col)} className={hide ? 'col-hide-sm' : ''} style={{
+                      ...TD,
+                      textAlign: align,
+                      width,
+                      background: 'var(--bg-primary)',
+                      borderBottom: '2px solid var(--border)',
+                      cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
+                      color: sortBy === col ? 'var(--accent)' : 'var(--text-primary)',
+                    }}>
+                      {label}{sortIcon(col)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((c, i) => (
+                  <tr
+                    key={c.customer_id}
+                    onClick={() => handleViewInsights(c.customer_id)}
+                    className={i % 2 === 0 ? 'row-even' : 'row-odd'}
+                    style={{ cursor: insightsLoading ? 'wait' : 'pointer' }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.transform = 'scale(1.0, 1.50)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,191,165,0.15)';
+                      e.currentTarget.style.zIndex = '1';
+                      e.currentTarget.style.position = 'relative';
+                      Array.from(e.currentTarget.cells).forEach(td => {
+                        td.style.transform = 'scale(0.909, 0.667)';
+                      });
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = 'none';
+                      e.currentTarget.style.zIndex = 'auto';
+                      e.currentTarget.style.position = 'static';
+                      Array.from(e.currentTarget.cells).forEach(td => {
+                        td.style.transform = 'scale(1)';
+                      });
+                    }}
+                  >
+                    <td style={TD}>{c.name}</td>
+                    <td style={TD} className="col-hide-sm">{c.city}</td>
+                    <td style={TD} className="col-hide-sm">{c.state}</td>
+                    <td style={{ ...TD, textAlign: 'right' }}>{c.total_orders}</td>
+                    <td style={{ ...TD, textAlign: 'right' }}>{fmt(c.total_spent)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             </div>
-
-            {/*
-              STEP 1 — Sortable table
-              sorted is: [{ customer_id, name, city, state, total_orders, total_spent }]
-
-              Build a table with these columns:
-                Name | City | State | Orders | Total Spent
-
-              Each column header should be clickable and call handleSort(columnName).
-              Use sortIcon(columnName) to show ↑ or ↓ on the active sort column.
-
-              Hint: use a standard HTML <table> with <thead> and <tbody>.
-              Style alternating rows with different background colors.
-              Format total_spent with formatCurrency().
-            */}
-
-            {/* TODO: add your sortable table here */}
-            <div className="loading" style={{ height: 400 }}>
-              Implement the sortable customers table.
-              Data available in: sorted (array of customer objects)
-              Sorting state: sortBy="{sortBy}", sortDir="{sortDir}"
-              Use handleSort(column) to handle header clicks.
-            </div>
-
           </div>
         )}
       </div>
+
+      <InsightsModal isOpen={!!insightsData} onClose={() => setInsightsData(null)} data={insightsData} type="customer" />
     </div>
   );
 }

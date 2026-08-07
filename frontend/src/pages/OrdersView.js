@@ -1,43 +1,41 @@
-/**
- * OrdersView.js — Orders Overview page
- *
- * This page shows:
- *   - Stat cards: total revenue, total orders, unique customers
- *   - A bar/line chart of monthly revenue over time
- *   - A bar chart of revenue by city/state
- *   - A date range filter
- *
- * The data fetching is already wired up.
- * Your job: implement the UI — charts, stat cards, and layout.
- *
- * Useful libraries already installed:
- *   - recharts: BarChart, LineChart, XAxis, YAxis, Tooltip, ResponsiveContainer
- */
-
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
 import Navbar from '../components/Navbar';
-import { getSummary, getOrders, getCities } from '../utils/api';
+import { useTheme } from '../utils/ThemeContext';
+import { useCurrency } from '../utils/CurrencyContext';
+import ErrorBanner from '../components/ErrorBanner';
+import EmptyState from '../components/EmptyState';
+import DateRangePicker from '../components/DateRangePicker';
+import MonthlyInsightsModal from '../components/MonthlyInsightsModal';
+import CityInsightsModal from '../components/CityInsightsModal';
+import { getSummary, getOrders, getCities, getProducts, getCustomers } from '../utils/api';
+import { useDateRange } from '../utils/DateRangeContext';
+import { exportCsv } from '../utils/exportCsv';
 
 export default function OrdersView() {
-  const [startDate, setStartDate] = useState('2022-01-01');
-  const [endDate,   setEndDate]   = useState('2022-12-31');
-  const [summary,   setSummary]   = useState(null);
-  const [orders,    setOrders]    = useState([]);
-  const [cities,    setCities]    = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState(null);
+  const { startDate, setStartDate, endDate, setEndDate } = useDateRange();
+  const { dark } = useTheme();
+  const { fmt, fmtShort, t } = useCurrency();
+  const tickColor = dark ? '#C8E6F5' : '#4A6080';
+  const [summary, setSummary] = useState(null);
+  const [orders,  setOrders]  = useState([]);
+  const [cities,  setCities]  = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState(null);
+  const [monthlyInsights, setMonthlyInsights] = useState(null);
+  const [cityInsights, setCityInsights] = useState(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
-  async function loadData() {
+  async function loadData(start = startDate, end = endDate) {
     setLoading(true);
     setError(null);
     try {
       const [s, o, c] = await Promise.all([
-        getSummary(),
-        getOrders(startDate, endDate),
-        getCities(startDate, endDate),
+        getSummary(start, end),
+        getOrders(start, end),
+        getCities(start, end),
       ]);
       setSummary(s);
       setOrders(o);
@@ -49,85 +47,158 @@ export default function OrdersView() {
     }
   }
 
+  async function handleBarClick(data) {
+    if (!data || insightsLoading) return;
+
+    setInsightsLoading(true);
+    try {
+      const [year, month] = data.month.split('-');
+      const monthStart = `${year}-${month}-01`;
+      const monthEnd = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
+
+      const [summary, products, customers, cities] = await Promise.all([
+        getSummary(monthStart, monthEnd),
+        getProducts(monthStart, monthEnd),
+        getCustomers(monthStart, monthEnd),
+        getCities(monthStart, monthEnd),
+      ]);
+
+      setMonthlyInsights({
+        monthName: data.month_name + ' ' + year,
+        summary,
+        products,
+        customers,
+        cities,
+      });
+    } catch (err) {
+      alert(`Failed to load monthly insights: ${err.message}`);
+    } finally {
+      setInsightsLoading(false);
+    }
+  }
+
+  async function handleCityClick(data) {
+    if (!data || insightsLoading) return;
+
+    setInsightsLoading(true);
+    try {
+      const [summary, products, customers] = await Promise.all([
+        getSummary(startDate, endDate, data.city, data.state),
+        getProducts(startDate, endDate, data.city, data.state),
+        getCustomers(startDate, endDate, data.city, data.state),
+      ]);
+
+      setCityInsights({
+        cityName: `${data.city}, ${data.state}`,
+        summary,
+        products,
+        customers,
+      });
+    } catch (err) {
+      alert(`Failed to load city insights: ${err.message}`);
+    } finally {
+      setInsightsLoading(false);
+    }
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
       <Navbar />
       <div className="page">
 
-        {/* ── Filter bar ─────────────────────────────────────────────────── */}
         <div className="filter-bar">
-          <label>From</label>
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-          <label>To</label>
-          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-          <button className="btn-apply" onClick={loadData}>Apply</button>
+          <DateRangePicker onApply={loadData} />
+          <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+            <button className="btn-download" onClick={() => exportCsv(orders, `orders_${startDate}_${endDate}`)} disabled={orders.length === 0}>
+              {t.monthlyOrders}
+            </button>
+            <button className="btn-download" onClick={() => exportCsv(cities, `cities_${startDate}_${endDate}`)} disabled={cities.length === 0}>
+              {t.cities}
+            </button>
+          </span>
         </div>
 
-        {/* ── Error state ────────────────────────────────────────────────── */}
-        {error && (
-          <div style={{ color: '#C62828', padding: 16, background: '#FFEBEE', borderRadius: 8, marginBottom: 16 }}>
-            Error: {error}
-          </div>
-        )}
+        <ErrorBanner message={error} />
+        {loading && <div className="loading">{t.loadingOrders}</div>}
+        {!loading && !error && orders.length === 0 && <EmptyState />}
 
-        {/* ── Loading state ──────────────────────────────────────────────── */}
-        {loading && <div className="loading">Loading orders data…</div>}
-
-        {/* ── TODO: Build the UI here ────────────────────────────────────── */}
-        {!loading && !error && (
+        {!loading && !error && orders.length > 0 && (
           <>
-            {/*
-              STEP 1 — Stat cards
-              Show total_revenue, total_orders, unique_customers from summary.
-              Hint: use the .stat-row and .stat-box CSS classes.
-              Available data: summary.total_revenue, summary.total_orders, summary.unique_customers
-            */}
             <div className="stat-row">
               <div className="stat-box">
-                <div className="label">Total Revenue</div>
-                <div className="value">TODO</div>
+                <div className="label">{t.totalRevenue}</div>
+                <div className="value">{summary ? fmt(summary.total_revenue) : '—'}</div>
               </div>
               <div className="stat-box">
-                <div className="label">Total Orders</div>
-                <div className="value">TODO</div>
+                <div className="label">{t.totalOrders}</div>
+                <div className="value">{summary ? Number(summary.total_orders).toLocaleString() : '—'}</div>
               </div>
               <div className="stat-box">
-                <div className="label">Unique Customers</div>
-                <div className="value">TODO</div>
+                <div className="label">{t.uniqueCustomers}</div>
+                <div className="value">{summary ? Number(summary.unique_customers).toLocaleString() : '—'}</div>
               </div>
             </div>
 
-            {/*
-              STEP 2 — Monthly revenue chart
-              orders is an array of: { month, month_name, order_count, revenue }
-              Use a BarChart or LineChart from recharts.
-              Hint: XAxis dataKey="month_name", Bar dataKey="revenue"
-            */}
             <div className="card" style={{ marginBottom: 20 }}>
-              <div className="section-title" style={{ marginBottom: 16 }}>Monthly Revenue</div>
-              {/* TODO: add your chart here */}
-              <div className="loading" style={{ height: 200 }}>
-                Implement the monthly revenue chart using recharts BarChart
+              <div className="section-title" style={{ marginBottom: 16 }}>
+                {t.monthlyRevenue}
               </div>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={orders} margin={{ top: 4, right: 16, left: 16, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="month_name" tick={{ fontSize: 12, fill: tickColor }} />
+                  <YAxis tickFormatter={v => fmtShort(v)} tick={{ fontSize: 12, fill: tickColor }} />
+                  <Tooltip formatter={v => [fmt(v), t.revenue]} />
+                  <Bar
+                    dataKey="revenue"
+                    fill="#2D4EF5"
+                    radius={[4, 4, 0, 0]}
+                    onClick={handleBarClick}
+                    cursor={insightsLoading ? 'wait' : 'pointer'}
+                  >
+                    <LabelList dataKey="revenue" position="insideTop" formatter={fmtShort} style={{ fontSize: 11, fill: '#ffffff', fontWeight: 600 }} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
 
-            {/*
-              STEP 3 — Revenue by city chart
-              cities is an array of: { city, state, order_count, revenue }
-              Use a horizontal BarChart (layout="vertical").
-              Show top 10 cities only.
-              Hint: .slice(0, 10) on cities array
-            */}
             <div className="card">
-              <div className="section-title" style={{ marginBottom: 16 }}>Revenue by City</div>
-              {/* TODO: add your chart here */}
-              <div className="loading" style={{ height: 200 }}>
-                Implement the cities chart using recharts BarChart with layout="vertical"
+              <div className="section-title" style={{ marginBottom: 16 }}>
+                {t.revenueByCity}
               </div>
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={cities.slice(0, 10)} layout="vertical" margin={{ top: 4, right: 80, left: 80, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" tickFormatter={v => fmtShort(v)} tick={{ fontSize: 12, fill: tickColor }} />
+                  <YAxis type="category" dataKey="city" tick={{ fontSize: 12, fill: tickColor }} width={76} />
+                  <Tooltip formatter={v => [fmt(v), t.revenue]} />
+                  <Bar
+                    dataKey="revenue"
+                    fill="#00BFA5"
+                    radius={[0, 4, 4, 0]}
+                    onClick={handleCityClick}
+                    cursor={insightsLoading ? 'wait' : 'pointer'}
+                  >
+                    <LabelList dataKey="revenue" position="right" formatter={fmtShort} style={{ fontSize: 11, fill: tickColor, fontWeight: 600 }} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </>
         )}
       </div>
+
+      <MonthlyInsightsModal
+        isOpen={!!monthlyInsights}
+        onClose={() => setMonthlyInsights(null)}
+        data={monthlyInsights}
+      />
+
+      <CityInsightsModal
+        isOpen={!!cityInsights}
+        onClose={() => setCityInsights(null)}
+        data={cityInsights}
+      />
     </div>
   );
 }
