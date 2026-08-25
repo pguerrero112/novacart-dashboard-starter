@@ -17,7 +17,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import Navbar from '../components/Navbar';
-import { getSummary, getOrders, getCities } from '../utils/api';
+import { getSummary, getOrders, getCountries } from '../utils/api';
 
 export default function OrdersView() {
   const [startDate, setStartDate] = useState('2022-01-01');
@@ -35,9 +35,9 @@ export default function OrdersView() {
     setError(null);
     try {
       const [s, o, c] = await Promise.all([
-        getSummary(),
-        getOrders(startDate, endDate),
-        getCities(startDate, endDate),
+        getSummary(1),
+        getOrders(1, startDate, endDate),
+        getCountries(1, startDate, endDate),
       ]);
       setSummary(s);
       setOrders(o);

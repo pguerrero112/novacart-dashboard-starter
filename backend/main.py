@@ -122,10 +122,10 @@ def authorize(request: Request):
 
 # ── Franchise endpoints ───────────────────────────────────────────────────────
 
-@app.get("/franchise/summary", tags=["Franchise"])
-def get_summary():
+@app.get("/franchise/{franchise_id}/summary", tags=["Franchise"])
+def get_summary(franchise_id: int):
     """
-    Returns an overview of all orders in the database:
+    Returns an overview of all orders for the given franchise:
     - Total revenue (delivered + shipped orders only)
     - Total orders
     - Number of unique customers
@@ -136,47 +136,35 @@ def get_summary():
         "total_revenue": 1284750.00,
         "total_orders": 8432,
         "unique_customers": 380,
-        "date_range": { "start": "2022-01-01", "end": "2022-12-31" }
+        "date_range": { "start_date": "2022-01-01", "end_date": "2022-12-31" }
     }
-
-    TODO: implement this endpoint.
-    Hints:
-      - Use fact_orders table
-      - Filter status IN ('delivered', 'shipped') for revenue
-      - Use MIN/MAX of order_date for date_range
     """
     conn = get_connection()
 
-    # ── YOUR CODE HERE ────────────────────────────────────────────────────────
-    #
-    # results = execute_query(conn, """
-    #     SELECT
-    #         COUNT(DISTINCT order_id)    AS total_orders,
-    #         SUM(amount)                 AS total_revenue,
-    #         COUNT(DISTINCT customer_id) AS unique_customers,
-    #         MIN(order_date)             AS start_date,
-    #         MAX(order_date)             AS end_date
-    #     FROM fact_orders
-    #     WHERE status IN ('delivered', 'shipped')
-    # """)
-    #
-    # row = results[0]
-    # return {
-    #     "total_revenue":     round(row["total_revenue"] or 0, 2),
-    #     "total_orders":      row["total_orders"],
-    #     "unique_customers":  row["unique_customers"],
-    #     "date_range": {"start": row["start_date"], "end": row["end_date"]},
-    # }
-    # ─────────────────────────────────────────────────────────────────────────
+    results = execute_query(conn, """
+        SELECT
+            COUNT(DISTINCT order_id)    AS total_orders,
+            SUM(amount)                 AS total_revenue,
+            COUNT(DISTINCT customer_id) AS unique_customers,
+            MIN(order_date)             AS start_date,
+            MAX(order_date)             AS end_date
+        FROM fact_orders
+        WHERE status IN ('delivered', 'shipped')
+    """)
 
-    raise HTTPException(status_code=501, detail="Not implemented yet — your turn!")
+    row = results[0]
+    return {
+        "total_revenue":    round(row["total_revenue"] or 0, 2),
+        "total_orders":     row["total_orders"],
+        "unique_customers": row["unique_customers"],
+        "date_range":       {"start_date": row["start_date"], "end_date": row["end_date"]},
+    }
 
 
-@app.get("/franchise/orders", tags=["Franchise"])
-def get_orders(start: str = "2022-01-01", end: str = "2022-12-31"):
+@app.get("/franchise/{franchise_id}/orders", tags=["Franchise"])
+def get_orders(franchise_id: int, start: str = "2022-01-01", end: str = "2022-12-31"):
     """
     Returns monthly order volume and revenue for the given date range.
-    Used to power the orders overview chart.
 
     Query parameters:
       start: start date (YYYY-MM-DD)
@@ -187,22 +175,40 @@ def get_orders(start: str = "2022-01-01", end: str = "2022-12-31"):
         { "month": "2022-01", "month_name": "January", "order_count": 842, "revenue": 128450.00 },
         { "month": "2022-02", "month_name": "February", "order_count": 910, "revenue": 141230.00 }
     ]
-
-    TODO: implement this endpoint.
-    Hints:
-      - JOIN fact_orders with dim_date on date_key
-      - GROUP BY year, month, month_name
-      - Filter order_date between start and end
-      - Only include delivered + shipped for revenue
     """
     conn = get_connection()
 
-    # ── YOUR CODE HERE ────────────────────────────────────────────────────────
-    raise HTTPException(status_code=501, detail="Not implemented yet — your turn!")
+    results = execute_query(
+        conn,
+        """
+        SELECT
+            SUBSTR(fo.order_date, 1, 7)      AS month,
+            MIN(dd.month_name)          AS month_name,
+            COUNT(fo.order_id)          AS order_count,
+            ROUND(SUM(fo.amount), 2)    AS revenue
+        FROM fact_orders fo
+        JOIN dim_date dd ON fo.date_key = dd.date_key
+        WHERE fo.order_date BETWEEN ? AND ?
+          AND fo.status IN ('delivered', 'shipped')
+        GROUP BY SUBSTR(fo.order_date, 1, 7)
+        ORDER BY month ASC
+        """,
+        (start, end),
+    )
+
+    return [
+        {
+            "month":       row["month"],
+            "month_name":  row["month_name"],
+            "order_count": row["order_count"],
+            "revenue":     round(row["revenue"] or 0, 2),
+        }
+        for row in results
+    ]
 
 
-@app.get("/franchise/products", tags=["Franchise"])
-def get_products(start: str = "2022-01-01", end: str = "2022-12-31"):
+@app.get("/franchise/{franchise_id}/products", tags=["Franchise"])
+def get_products(franchise_id: int, start: str = "2022-01-01", end: str = "2022-12-31"):
     """
     Returns the top 10 products by revenue for the given date range.
 
@@ -220,52 +226,130 @@ def get_products(start: str = "2022-01-01", end: str = "2022-12-31"):
     """
     conn = get_connection()
 
-    # ── YOUR CODE HERE ────────────────────────────────────────────────────────
-    raise HTTPException(status_code=501, detail="Not implemented yet — your turn!")
+    results = execute_query(
+        conn,
+        """
+        SELECT
+            dp.product_id               AS product_id,
+            dp.name                     AS name,
+            dp.category                 AS category,
+            COUNT(fo.order_id)          AS units_sold,
+            ROUND(SUM(fo.amount), 2)    AS revenue
+        FROM fact_orders fo
+        JOIN dim_product dp ON fo.product_id = dp.product_id
+        WHERE fo.order_date BETWEEN ? AND ?
+          AND fo.status IN ('delivered', 'shipped')
+        GROUP BY dp.product_id, dp.name, dp.category
+        ORDER BY revenue DESC
+        LIMIT 10
+        """,
+        (start, end),
+    )
+
+    return [
+        {
+            "product_id": row["product_id"],
+            "name":       row["name"],
+            "category":   row["category"],
+            "units_sold": row["units_sold"],
+            "revenue":    round(row["revenue"] or 0, 2),
+        }
+        for row in results
+    ]
 
 
-@app.get("/franchise/customers", tags=["Franchise"])
-def get_customers(start: str = "2022-01-01", end: str = "2022-12-31"):
+@app.get("/franchise/{franchise_id}/customers", tags=["Franchise"])
+def get_customers(franchise_id: int, start: str = "2022-01-01", end: str = "2022-12-31"):
     """
-    Returns the top 20 customers by revenue for the given date range.
+    Returns the top 20 customers by total spend for the given date range.
+
+    Query parameters:
+      start: start date (YYYY-MM-DD)
+      end:   end date (YYYY-MM-DD)
 
     Expected response:
     [
         { "customer_id": "C001", "name": "Alice Johnson", "city": "Austin",
           "state": "TX", "total_orders": 14, "total_spent": 1240.50 }
     ]
-
-    TODO: implement this endpoint.
-    Hints:
-      - JOIN fact_orders with dim_customer on customer_id
-      - Only use dim_customer WHERE is_current = 1
-      - GROUP BY customer_id, name, addr_city, addr_state
-      - ORDER BY total_spent DESC, LIMIT 20
     """
     conn = get_connection()
 
-    # ── YOUR CODE HERE ────────────────────────────────────────────────────────
-    raise HTTPException(status_code=501, detail="Not implemented yet — your turn!")
+    results = execute_query(
+        conn,
+        """
+        SELECT
+            dc.customer_id                      AS customer_id,
+            dc.name                             AS name,
+            dc.addr_city                        AS city,
+            dc.addr_state                       AS state,
+            COUNT(DISTINCT fo.order_id)         AS total_orders,
+            ROUND(SUM(fo.amount), 2)            AS total_spent
+        FROM fact_orders fo
+        JOIN dim_customer dc ON fo.customer_id = dc.customer_id
+        WHERE fo.order_date BETWEEN ? AND ?
+          AND fo.status IN ('delivered', 'shipped')
+          AND dc.is_current = 1
+        GROUP BY dc.customer_id, dc.name, dc.addr_city, dc.addr_state
+        ORDER BY total_spent DESC
+        LIMIT 20
+        """,
+        (start, end),
+    )
+
+    return [
+        {
+            "customer_id":  row["customer_id"],
+            "name":         row["name"],
+            "city":         row["city"],
+            "state":        row["state"],
+            "total_orders": row["total_orders"],
+            "total_spent":  round(row["total_spent"] or 0, 2),
+        }
+        for row in results
+    ]
 
 
-@app.get("/franchise/cities", tags=["Franchise"])
-def get_cities(start: str = "2022-01-01", end: str = "2022-12-31"):
+@app.get("/franchise/{franchise_id}/countries", tags=["Franchise"])
+def get_countries(franchise_id: int, start: str = "2022-01-01", end: str = "2022-12-31"):
     """
-    Returns revenue grouped by city and state.
+    Returns revenue grouped by state (US data) or country (Snowflake production data).
     Used to power the geographic breakdown chart.
+
+    Query parameters:
+      start: start date (YYYY-MM-DD)
+      end:   end date (YYYY-MM-DD)
 
     Expected response:
     [
-        { "city": "Austin", "state": "TX", "order_count": 420, "revenue": 38430.00 }
+        { "state": "TX", "order_count": 1420, "revenue": 218500.00 },
+        { "state": "FL", "order_count": 1285, "revenue": 198200.00 }
     ]
-
-    TODO: implement this endpoint.
-    Hints:
-      - JOIN fact_orders with dim_customer (is_current = 1) on customer_id
-      - GROUP BY addr_city, addr_state
-      - ORDER BY revenue DESC
     """
     conn = get_connection()
 
-    # ── YOUR CODE HERE ────────────────────────────────────────────────────────
-    raise HTTPException(status_code=501, detail="Not implemented yet — your turn!")
+    results = execute_query(
+        conn,
+        """
+        SELECT
+            dc.addr_state                       AS state,
+            COUNT(DISTINCT fo.order_id)         AS order_count,
+            ROUND(SUM(fo.amount), 2)            AS revenue
+        FROM fact_orders fo
+        JOIN dim_customer dc ON fo.customer_id = dc.customer_id
+        WHERE fo.order_date BETWEEN ? AND ?
+          AND fo.status IN ('delivered', 'shipped')
+        GROUP BY dc.addr_state
+        ORDER BY revenue DESC
+        """,
+        (start, end),
+    )
+
+    return [
+        {
+            "state":       row["state"],
+            "order_count": row["order_count"],
+            "revenue":     round(row["revenue"] or 0, 2),
+        }
+        for row in results
+    ]
