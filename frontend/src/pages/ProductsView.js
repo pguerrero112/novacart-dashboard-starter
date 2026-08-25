@@ -36,7 +36,7 @@ export default function ProductsView() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getProducts(startDate, endDate);
+      const data = await getProducts(1, startDate, endDate);
       setProducts(data);
     } catch (err) {
       setError(err.message);
