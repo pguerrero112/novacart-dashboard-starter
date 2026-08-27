@@ -1,53 +1,73 @@
 /**
- * OrdersView.js — Orders Overview page
+ * OrdersView.js — Orders Overview page (View 1)
  *
- * This page shows:
- *   - Stat cards: total revenue, total orders, unique customers
- *   - A bar/line chart of monthly revenue over time
- *   - A bar chart of revenue by city/state
- *   - A date range filter
- *
- * The data fetching is already wired up.
- * Your job: implement the UI — charts, stat cards, and layout.
- *
- * Useful libraries already installed:
- *   - recharts: BarChart, LineChart, XAxis, YAxis, Tooltip, ResponsiveContainer
+ * Stat cards (total revenue, total orders) + monthly revenue trend chart +
+ * revenue-by-state chart, all scoped to the selected date range.
  */
 
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { Calendar, ArrowRight, DollarSign, ShoppingBag } from 'lucide-react';
 import Navbar from '../components/Navbar';
-import { getSummary, getOrders, getCities } from '../utils/api';
+import { getOrders, getCountries } from '../utils/api';
+
+function formatCurrencyCompact(value) {
+  if (!value) return '$0';
+  if (Math.abs(value) >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+  if (Math.abs(value) >= 1000)    return `$${(value / 1000).toFixed(0)}K`;
+  return `$${value.toFixed(0)}`;
+}
+
+function formatCurrencyFull(value) {
+  return `$${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function friendlyError(err) {
+  if (err.message === 'Failed to fetch') {
+    return 'Unable to reach the server. Please check your connection and try again.';
+  }
+  return err.message || 'Something went wrong loading the orders overview.';
+}
+
+const tooltipStyle = {
+  contentStyle: { background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8 },
+  labelStyle:   { color: 'var(--text-secondary)', marginBottom: 4 },
+  itemStyle:    { color: 'var(--text-primary)' },
+};
 
 export default function OrdersView() {
   const [startDate, setStartDate] = useState('2022-01-01');
   const [endDate,   setEndDate]   = useState('2022-12-31');
-  const [summary,   setSummary]   = useState(null);
   const [orders,    setOrders]    = useState([]);
-  const [cities,    setCities]    = useState([]);
+  const [states,    setStates]    = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState(null);
 
   useEffect(() => { loadData(); }, []);
 
+  // /franchise/{id}/summary has no start/end params — it always returns
+  // all-time totals, so it can't power date-scoped stat cards. Total
+  // revenue/orders are derived instead from the already date-scoped
+  // /orders response, which stays in sync with the other charts.
   async function loadData() {
     setLoading(true);
     setError(null);
     try {
-      const [s, o, c] = await Promise.all([
-        getSummary(),
-        getOrders(startDate, endDate),
-        getCities(startDate, endDate),
+      const [o, c] = await Promise.all([
+        getOrders(1, startDate, endDate),
+        getCountries(1, startDate, endDate),
       ]);
-      setSummary(s);
       setOrders(o);
-      setCities(c);
+      setStates(c.filter(row => row.revenue > 0));
     } catch (err) {
-      setError(err.message);
+      setError(friendlyError(err));
     } finally {
       setLoading(false);
     }
   }
+
+  const totalRevenue = orders.reduce((sum, row) => sum + (row.revenue || 0), 0);
+  const totalOrders  = orders.reduce((sum, row) => sum + (row.order_count || 0), 0);
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
@@ -56,74 +76,114 @@ export default function OrdersView() {
 
         {/* ── Filter bar ─────────────────────────────────────────────────── */}
         <div className="filter-bar">
-          <label>From</label>
+          <label><Calendar size={14} /> From</label>
           <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-          <label>To</label>
+          <label><Calendar size={14} /> To</label>
           <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-          <button className="btn-apply" onClick={loadData}>Apply</button>
+          <button className="btn-apply" onClick={loadData}>
+            Apply <ArrowRight size={14} />
+          </button>
         </div>
 
-        {/* ── Error state ────────────────────────────────────────────────── */}
         {error && (
           <div style={{ color: '#C62828', padding: 16, background: '#FFEBEE', borderRadius: 8, marginBottom: 16 }}>
             Error: {error}
           </div>
         )}
 
-        {/* ── Loading state ──────────────────────────────────────────────── */}
-        {loading && <div className="loading">Loading orders data…</div>}
+        {loading && <div className="loading">Loading orders overview…</div>}
 
-        {/* ── TODO: Build the UI here ────────────────────────────────────── */}
         {!loading && !error && (
           <>
-            {/*
-              STEP 1 — Stat cards
-              Show total_revenue, total_orders, unique_customers from summary.
-              Hint: use the .stat-row and .stat-box CSS classes.
-              Available data: summary.total_revenue, summary.total_orders, summary.unique_customers
-            */}
+            {/* ── Stat cards ──────────────────────────────────────────────── */}
             <div className="stat-row">
               <div className="stat-box">
-                <div className="label">Total Revenue</div>
-                <div className="value">TODO</div>
+                <div className="icon-badge"><DollarSign size={20} /></div>
+                <div>
+                  <div className="label">Total Revenue</div>
+                  <div className="value">{formatCurrencyCompact(totalRevenue)}</div>
+                </div>
               </div>
               <div className="stat-box">
-                <div className="label">Total Orders</div>
-                <div className="value">TODO</div>
-              </div>
-              <div className="stat-box">
-                <div className="label">Unique Customers</div>
-                <div className="value">TODO</div>
+                <div className="icon-badge blue"><ShoppingBag size={20} /></div>
+                <div>
+                  <div className="label">Total Orders</div>
+                  <div className="value">{totalOrders.toLocaleString('en-US')}</div>
+                </div>
               </div>
             </div>
 
-            {/*
-              STEP 2 — Monthly revenue chart
-              orders is an array of: { month, month_name, order_count, revenue }
-              Use a BarChart or LineChart from recharts.
-              Hint: XAxis dataKey="month_name", Bar dataKey="revenue"
-            */}
+            {/* ── Monthly revenue chart ───────────────────────────────────── */}
             <div className="card" style={{ marginBottom: 20 }}>
               <div className="section-title" style={{ marginBottom: 16 }}>Monthly Revenue</div>
-              {/* TODO: add your chart here */}
-              <div className="loading" style={{ height: 200 }}>
-                Implement the monthly revenue chart using recharts BarChart
-              </div>
+              {orders.length === 0 ? (
+                <div className="loading">No orders in this date range.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={orders} margin={{ top: 8, right: 16, left: 8, bottom: 24 }}>
+                    <CartesianGrid vertical={false} stroke="var(--border)" />
+                    <XAxis
+                      dataKey="month_name"
+                      tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+                      axisLine={{ stroke: 'var(--border)' }}
+                      tickLine={false}
+                      label={{ value: 'Month', position: 'insideBottom', offset: -16, fill: 'var(--text-muted)', fontSize: 12 }}
+                    />
+                    <YAxis
+                      tickFormatter={formatCurrencyCompact}
+                      tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+                      axisLine={{ stroke: 'var(--border)' }}
+                      tickLine={false}
+                      label={{ value: 'Revenue', angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 }}
+                    />
+                    <Tooltip
+                      {...tooltipStyle}
+                      formatter={(value) => [formatCurrencyFull(value), 'Revenue']}
+                      labelFormatter={(label) => label}
+                    />
+                    <Bar dataKey="revenue" fill="var(--accent)" radius={[4, 4, 0, 0]} maxBarSize={24} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
 
-            {/*
-              STEP 3 — Revenue by city chart
-              cities is an array of: { city, state, order_count, revenue }
-              Use a horizontal BarChart (layout="vertical").
-              Show top 10 cities only.
-              Hint: .slice(0, 10) on cities array
-            */}
+            {/* ── Revenue by state chart ──────────────────────────────────── */}
             <div className="card">
-              <div className="section-title" style={{ marginBottom: 16 }}>Revenue by City</div>
-              {/* TODO: add your chart here */}
-              <div className="loading" style={{ height: 200 }}>
-                Implement the cities chart using recharts BarChart with layout="vertical"
-              </div>
+              <div className="section-title" style={{ marginBottom: 16 }}>Revenue by State</div>
+              {states.length === 0 ? (
+                <div className="loading">No revenue in this date range.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={Math.max(200, states.length * 36)}>
+                  <BarChart
+                    data={states}
+                    layout="vertical"
+                    margin={{ top: 8, right: 24, left: 8, bottom: 24 }}
+                  >
+                    <CartesianGrid horizontal={false} stroke="var(--border)" />
+                    <XAxis
+                      type="number"
+                      tickFormatter={formatCurrencyCompact}
+                      tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+                      axisLine={{ stroke: 'var(--border)' }}
+                      tickLine={false}
+                      label={{ value: 'Revenue', position: 'insideBottom', offset: -16, fill: 'var(--text-muted)', fontSize: 12 }}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="state"
+                      width={50}
+                      tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+                      axisLine={{ stroke: 'var(--border)' }}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      {...tooltipStyle}
+                      formatter={(value) => [formatCurrencyFull(value), 'Revenue']}
+                    />
+                    <Bar dataKey="revenue" fill="var(--blue)" radius={[0, 4, 4, 0]} maxBarSize={24} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </>
         )}

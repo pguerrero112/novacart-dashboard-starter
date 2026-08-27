@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Calendar, ArrowRight } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import { getCustomers } from '../utils/api';
 
@@ -34,7 +35,7 @@ export default function CustomersView() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getCustomers(startDate, endDate);
+      const data = await getCustomers(1, startDate, endDate);
       setCustomers(data);
     } catch (err) {
       setError(err.message);
@@ -71,11 +72,13 @@ export default function CustomersView() {
       <div className="page">
 
         <div className="filter-bar">
-          <label>From</label>
+          <label><Calendar size={14} /> From</label>
           <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-          <label>To</label>
+          <label><Calendar size={14} /> To</label>
           <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-          <button className="btn-apply" onClick={loadData}>Apply</button>
+          <button className="btn-apply" onClick={loadData}>
+            Apply <ArrowRight size={14} />
+          </button>
           <span style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--text-muted)' }}>
             {customers.length} customers
           </span>

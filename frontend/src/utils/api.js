@@ -18,10 +18,10 @@ async function apiFetch(path) {
   return res.json();
 }
 
-export async function authorize()       { return apiFetch('/authorize'); }
-export async function getHealth()       { return apiFetch('/health'); }
-export async function getSummary()      { return apiFetch('/franchise/summary'); }
-export async function getOrders(s, e)   { return apiFetch(`/franchise/orders?start=${s}&end=${e}`); }
-export async function getProducts(s, e) { return apiFetch(`/franchise/products?start=${s}&end=${e}`); }
-export async function getCustomers(s,e) { return apiFetch(`/franchise/customers?start=${s}&end=${e}`); }
-export async function getCities(s, e)   { return apiFetch(`/franchise/cities?start=${s}&end=${e}`); }
+export async function authorize()              { return apiFetch('/authorize'); }
+export async function getHealth()              { return apiFetch('/health'); }
+export async function getSummary(id)           { return apiFetch(`/franchise/${id}/summary`); }
+export async function getOrders(id, s, e)      { return apiFetch(`/franchise/${id}/orders?start=${s}&end=${e}`); }
+export async function getProducts(id, s, e)    { return apiFetch(`/franchise/${id}/products?start=${s}&end=${e}`); }
+export async function getCustomers(id, s, e)   { return apiFetch(`/franchise/${id}/customers?start=${s}&end=${e}`); }
+export async function getCountries(id, s, e)   { return apiFetch(`/franchise/${id}/countries?start=${s}&end=${e}`); }

@@ -12,6 +12,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { Calendar, ArrowRight } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import { getProducts } from '../utils/api';
 
@@ -36,7 +37,7 @@ export default function ProductsView() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getProducts(startDate, endDate);
+      const data = await getProducts(1, startDate, endDate);
       setProducts(data);
     } catch (err) {
       setError(err.message);
@@ -51,11 +52,13 @@ export default function ProductsView() {
       <div className="page">
 
         <div className="filter-bar">
-          <label>From</label>
+          <label><Calendar size={14} /> From</label>
           <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-          <label>To</label>
+          <label><Calendar size={14} /> To</label>
           <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-          <button className="btn-apply" onClick={loadData}>Apply</button>
+          <button className="btn-apply" onClick={loadData}>
+            Apply <ArrowRight size={14} />
+          </button>
         </div>
 
         {error && (
